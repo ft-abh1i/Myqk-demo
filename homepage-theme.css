@@ -1,0 +1,20 @@
+/* Homepage-only header treatment */
+body:not(.secondary-tab-active) #appHeader {
+  background: linear-gradient(135deg, #dff3e6 0%, #edf8f1 62%, #f7fbf8 100%);
+  border-bottom-color: #d8eadf;
+}
+
+body:not(.secondary-tab-active) #appHeader.scrolled {
+  border-bottom-color: #cfe4d7;
+  box-shadow: 0 5px 18px rgba(31, 122, 77, .09);
+}
+
+body:not(.secondary-tab-active) #appHeader .location-pin {
+  background: rgba(255, 255, 255, .88);
+  box-shadow: 0 3px 10px rgba(31, 122, 77, .09);
+}
+
+body:not(.secondary-tab-active) #appHeader .cart-btn {
+  background: var(--primary);
+  box-shadow: 0 6px 16px rgba(31, 122, 77, .22);
+}
