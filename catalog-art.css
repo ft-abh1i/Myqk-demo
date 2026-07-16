@@ -1,4 +1,4 @@
-/* Catalogue artwork enhancement for products and stores */
+/* Real catalogue photography for product and store cards */
 
 .store-thumb,
 .product-thumb,
@@ -6,15 +6,34 @@
   position: relative;
   overflow: hidden;
   isolation: isolate;
+  background: #eef3ef;
 }
 
 .store-thumb.catalog-image-ready {
   width: 92px;
   height: 76px;
+  padding: 0;
   border: 1px solid #e1e9e3;
   border-radius: 17px;
   background: #f4f7f5;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .75);
+}
+
+.product-thumb.catalog-image-ready {
+  width: 70px;
+  height: 70px;
+  padding: 0;
+  border: 1px solid #edf1ee;
+  border-radius: 16px;
+  background: #f8faf8;
+}
+
+.banner-icon.catalog-image-ready {
+  width: 56px;
+  height: 52px;
+  padding: 0;
+  border: 1px solid #e1e9e3;
+  border-radius: 15px;
+  background: #f4f7f5;
 }
 
 .store-thumb.catalog-image-ready::after,
@@ -29,57 +48,57 @@
   pointer-events: none;
 }
 
-.catalog-store-image,
-.catalog-banner-image,
-.catalog-product-image {
+.catalog-photo {
   width: 100%;
   height: 100%;
   display: block;
   opacity: 0;
-  transition: opacity .18s var(--ease), transform .22s var(--ease);
+  transition: opacity .2s var(--ease), transform .22s var(--ease);
 }
 
-.catalog-store-image.loaded,
-.catalog-banner-image.loaded,
-.catalog-product-image.loaded {
+.catalog-photo.loaded {
   opacity: 1;
 }
 
-.catalog-store-image {
+.catalog-photo-product,
+.catalog-photo-store,
+.catalog-photo-banner {
   object-fit: cover;
 }
 
-.store-card:active .catalog-store-image {
-  transform: scale(1.025);
+.catalog-photo-product {
+  transform: scale(1.02);
 }
 
-.product-thumb.catalog-image-ready {
-  width: 70px;
-  height: 70px;
-  border: 1px solid #edf1ee;
-  border-radius: 16px;
-  background: #fafcfb;
-}
-
-.catalog-product-image {
-  object-fit: contain;
-  padding: 2px;
-}
-
-.banner-icon.catalog-image-ready {
-  width: 56px;
-  height: 52px;
-  border: 1px solid #e1e9e3;
-  border-radius: 15px;
-  background: #f4f7f5;
-}
-
-.catalog-banner-image {
-  object-fit: cover;
+.store-card:active .catalog-photo-store {
+  transform: scale(1.035);
 }
 
 .product-card {
   align-items: center;
+}
+
+/* Show a clear cross only while the user has typed a search query. */
+.search-clear {
+  display: grid;
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(.82);
+  transition: opacity .15s var(--ease), transform .15s var(--ease), visibility .15s var(--ease);
+}
+
+.search-clear.show {
+  display: grid;
+  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
+  transform: scale(1);
+}
+
+/* The active tab colour is enough; remove the extra footer dots. */
+.nav-dot {
+  display: none !important;
 }
 
 @media (max-width: 390px) {
@@ -100,9 +119,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .catalog-store-image,
-  .catalog-banner-image,
-  .catalog-product-image {
+  .catalog-photo,
+  .search-clear {
     transition: none;
   }
 }
