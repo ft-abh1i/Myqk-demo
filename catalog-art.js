@@ -36,6 +36,10 @@
     p11: 'green-grocery', p12: 'green-grocery', p13: 'green-grocery', p14: 'green-grocery'
   });
 
+  const ALL_IMAGES = Object.freeze([
+    ...new Set([...Object.values(STORE_IMAGES), ...Object.values(PRODUCT_IMAGES)])
+  ]);
+
   const FALLBACK_IMAGE = 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320">
       <rect width="320" height="320" rx="36" fill="#eef5f0"/>
@@ -44,17 +48,41 @@
       <text x="160" y="181" text-anchor="middle" font-family="Arial, sans-serif" font-size="46" font-weight="700" fill="#1f7a4d">QK</text>
     </svg>`);
 
+  const preloadCache = new Map();
+
+  function preloadImage(src) {
+    if (preloadCache.has(src)) return preloadCache.get(src);
+
+    const request = new Promise((resolve) => {
+      const image = new Image();
+      image.decoding = 'async';
+      image.fetchPriority = 'high';
+      image.onload = () => resolve({ src, loaded: true });
+      image.onerror = () => resolve({ src, loaded: false });
+      image.src = src;
+    });
+
+    preloadCache.set(src, request);
+    return request;
+  }
+
+  function preloadAllImages() {
+    return Promise.all(ALL_IMAGES.map(preloadImage));
+  }
+
   function imageElement(src, alt, mode) {
     const image = document.createElement('img');
-    image.src = src || FALLBACK_IMAGE;
     image.alt = alt;
-    image.loading = 'lazy';
+    image.loading = 'eager';
     image.decoding = 'async';
+    image.fetchPriority = 'high';
+    image.draggable = false;
     image.className = `catalog-photo catalog-photo-${mode}`;
     image.addEventListener('load', () => image.classList.add('loaded'), { once: true });
     image.addEventListener('error', () => {
       if (image.src !== FALLBACK_IMAGE) image.src = FALLBACK_IMAGE;
     }, { once: true });
+    image.src = src || FALLBACK_IMAGE;
     return image;
   }
 
@@ -119,6 +147,7 @@
   }
 
   function initialize() {
+    const ready = preloadAllImages();
     enhanceAll();
 
     const observer = new MutationObserver(queueEnhance);
@@ -128,7 +157,11 @@
     if (main) observer.observe(main, { childList: true, subtree: true });
     if (cart) observer.observe(cart, { childList: true, subtree: true });
 
-    window.QKCatalogArt = Object.freeze({ refresh: queueEnhance });
+    window.QKCatalogArt = Object.freeze({
+      refresh: queueEnhance,
+      preload: preloadAllImages,
+      ready
+    });
   }
 
   if (document.readyState === 'loading') {
