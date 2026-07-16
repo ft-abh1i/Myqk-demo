@@ -1,0 +1,103 @@
+/* Shared Help & Support-style header for Orders, Track and Profile */
+body.secondary-tab-active #appHeader {
+  display: none;
+}
+
+body.secondary-tab-active #appMain {
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+.secondary-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  width: 100%;
+  height: 70px;
+  flex: none;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(255, 255, 255, .96);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.secondary-back {
+  width: 42px;
+  height: 42px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.secondary-back:active {
+  transform: scale(.94);
+}
+
+.secondary-back svg {
+  width: 22px;
+  height: 22px;
+  stroke-width: 2.7;
+}
+
+.secondary-title {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -.4px;
+}
+
+/* Orders and Track empty states stay centered below the shared header. */
+body.secondary-tab-active:not(.profile-tab-active) #appMain > .empty-state {
+  flex: 1;
+  min-height: 0;
+  justify-content: center;
+  padding: 24px;
+}
+
+/* Profile uses the remaining height below the shared header. */
+body.secondary-tab-active.profile-tab-active #appMain > .profile-v2 {
+  flex: 1;
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  padding: clamp(10px, 1.6vh, 15px) 16px clamp(12px, 1.8vh, 17px);
+}
+
+body.secondary-tab-active.profile-tab-active .profile-v2-title {
+  display: none;
+}
+
+body.secondary-tab-active.profile-tab-active .profile-v2-content {
+  height: 100%;
+}
+
+@media (max-height: 700px) {
+  .secondary-topbar {
+    height: 62px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+
+  .secondary-back {
+    width: 40px;
+    height: 40px;
+  }
+
+  .secondary-title {
+    font-size: 20px;
+  }
+
+  body.secondary-tab-active.profile-tab-active #appMain > .profile-v2 {
+    padding-top: 7px;
+    padding-bottom: 8px;
+  }
+}
