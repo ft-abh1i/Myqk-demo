@@ -129,9 +129,9 @@
     return Boolean(getValue('name') || getValue('phone') || getValue('email'));
   }
 
-  function mountProfile(forceEdit = false) {
+  function mountProfile(forceEdit = false, forceRender = false) {
     if (!main || !isProfileActive() || mounting) return;
-    if (main.querySelector('[data-profile-enhanced="true"]') && !forceEdit) return;
+    if (main.querySelector('[data-profile-enhanced="true"]') && !forceRender) return;
 
     mounting = true;
     const language = getLanguage();
@@ -161,7 +161,7 @@
 
     saveButton.addEventListener('click', () => {
       if (locked) {
-        mountProfile(true);
+        mountProfile(true, true);
         window.setTimeout(() => document.getElementById('profileNameInput')?.focus(), 0);
         return;
       }
@@ -179,7 +179,7 @@
       setValue('phone', phone);
       setValue('email', emailInput.value.trim());
       showToast(text.saved);
-      mountProfile(false);
+      mountProfile(false, true);
     });
 
     languageButton.addEventListener('click', openLanguageSheet);
@@ -190,7 +190,7 @@
       localStorage.removeItem(STORAGE.phone);
       localStorage.removeItem(STORAGE.email);
       showToast(copy[language].loggedOut);
-      mountProfile(true);
+      mountProfile(true, true);
     });
   }
 
@@ -229,7 +229,7 @@
       button.addEventListener('click', () => {
         localStorage.setItem(STORAGE.language, button.dataset.profileLanguage);
         closeLanguageSheet();
-        mountProfile(false);
+        mountProfile(false, true);
       });
     });
   }
