@@ -52,9 +52,12 @@
     if (title && title.textContent !== expectedTitle) title.textContent = expectedTitle;
 
     const backButton = header?.querySelector('.secondary-back');
-    if (backButton && !backButton.dataset.bound) {
-      backButton.dataset.bound = 'true';
-      backButton.addEventListener('click', goToDarkStore);
+    if (backButton) {
+      backButton.setAttribute('aria-label', TITLES[getLanguage()].back);
+      if (!backButton.dataset.bound) {
+        backButton.dataset.bound = 'true';
+        backButton.addEventListener('click', goToDarkStore);
+      }
     }
   }
 
@@ -98,6 +101,7 @@
     window.addEventListener('storage', (event) => {
       if (event.key === LANGUAGE_KEY) syncSecondaryPage();
     });
+    window.addEventListener('qk:languagechange', syncSecondaryPage);
 
     observer = new MutationObserver(() => {
       window.queueMicrotask(syncSecondaryPage);
