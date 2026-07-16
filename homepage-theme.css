@@ -1,16 +1,49 @@
 /* Homepage-only header treatment */
+:root {
+  --home-header-bg: #e8f5ec;
+  --home-header-line: #cfe4d7;
+}
+
+/* Location/cart row and search row form one continuous header block. */
 body:not(.secondary-tab-active) #appHeader {
-  background: linear-gradient(135deg, #dff3e6 0%, #edf8f1 62%, #f7fbf8 100%);
-  border-bottom-color: #d8eadf;
+  background: var(--home-header-bg);
+  border-bottom-color: transparent;
+  box-shadow: none;
 }
 
 body:not(.secondary-tab-active) #appHeader.scrolled {
-  border-bottom-color: #cfe4d7;
-  box-shadow: 0 5px 18px rgba(31, 122, 77, .09);
+  border-bottom-color: transparent;
+  box-shadow: none;
+}
+
+body:not(.secondary-tab-active) #searchWrap {
+  padding: 2px 16px 14px;
+  border-bottom: 1px solid var(--home-header-line);
+  background: var(--home-header-bg);
+}
+
+body:not(.secondary-tab-active) #searchWrap .search-bar {
+  height: 46px;
+  border-color: rgba(31, 122, 77, .15);
+  background: rgba(255, 255, 255, .94);
+  box-shadow: 0 5px 16px rgba(31, 122, 77, .08);
+}
+
+body:not(.secondary-tab-active) #searchWrap .search-bar:focus-within {
+  border-color: rgba(31, 122, 77, .55);
+  background: #ffffff;
+  box-shadow: 0 6px 18px rgba(31, 122, 77, .12);
+}
+
+/* Categories begin as a separate section after the divider. */
+body:not(.secondary-tab-active) #categoryNav {
+  padding-top: 12px;
+  padding-bottom: 13px;
+  background: #ffffff;
 }
 
 body:not(.secondary-tab-active) #appHeader .location-pin {
-  background: rgba(255, 255, 255, .88);
+  background: rgba(255, 255, 255, .9);
   box-shadow: 0 3px 10px rgba(31, 122, 77, .09);
 }
 
