@@ -1,0 +1,108 @@
+/* Catalogue artwork enhancement for products and stores */
+
+.store-thumb,
+.product-thumb,
+.banner-icon {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.store-thumb.catalog-image-ready {
+  width: 92px;
+  height: 76px;
+  border: 1px solid #e1e9e3;
+  border-radius: 17px;
+  background: #f4f7f5;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .75);
+}
+
+.store-thumb.catalog-image-ready::after,
+.product-thumb.catalog-image-ready::after,
+.banner-icon.catalog-image-ready::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px rgba(22, 38, 31, .045);
+  pointer-events: none;
+}
+
+.catalog-store-image,
+.catalog-banner-image,
+.catalog-product-image {
+  width: 100%;
+  height: 100%;
+  display: block;
+  opacity: 0;
+  transition: opacity .18s var(--ease), transform .22s var(--ease);
+}
+
+.catalog-store-image.loaded,
+.catalog-banner-image.loaded,
+.catalog-product-image.loaded {
+  opacity: 1;
+}
+
+.catalog-store-image {
+  object-fit: cover;
+}
+
+.store-card:active .catalog-store-image {
+  transform: scale(1.025);
+}
+
+.product-thumb.catalog-image-ready {
+  width: 70px;
+  height: 70px;
+  border: 1px solid #edf1ee;
+  border-radius: 16px;
+  background: #fafcfb;
+}
+
+.catalog-product-image {
+  object-fit: contain;
+  padding: 2px;
+}
+
+.banner-icon.catalog-image-ready {
+  width: 56px;
+  height: 52px;
+  border: 1px solid #e1e9e3;
+  border-radius: 15px;
+  background: #f4f7f5;
+}
+
+.catalog-banner-image {
+  object-fit: cover;
+}
+
+.product-card {
+  align-items: center;
+}
+
+@media (max-width: 390px) {
+  .store-thumb.catalog-image-ready {
+    width: 82px;
+    height: 70px;
+  }
+
+  .product-thumb.catalog-image-ready {
+    width: 62px;
+    height: 62px;
+  }
+
+  .banner-icon.catalog-image-ready {
+    width: 52px;
+    height: 48px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .catalog-store-image,
+  .catalog-banner-image,
+  .catalog-product-image {
+    transition: none;
+  }
+}
