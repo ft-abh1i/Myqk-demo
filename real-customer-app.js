@@ -18,21 +18,8 @@ const categories = [
   ['electronics', 'Electronics', '', 'https://i.ibb.co/9Hg19qZp/file-0000000049ec71fab3f2e2e7de8d5ac0.png']
 ];
 
-const stores = [
-  { id: 'freshmart', name: 'FreshMart', time: '20–30 mins', category: 'groceries', image: 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&w=500&q=80' },
-  { id: 'mediquick', name: 'MediQuick', time: '15–25 mins', category: 'pharmacy', image: 'https://images.unsplash.com/photo-1586015555751-63bb77f4322a?auto=format&fit=crop&w=500&q=80' },
-  { id: 'dailybasket', name: 'DailyBasket', time: '25–35 mins', category: 'fruits', image: 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=500&q=80' },
-  { id: 'snackhub', name: 'SnackHub', time: '20–30 mins', category: 'snacks', image: 'https://images.unsplash.com/photo-1604719312566-8912e9227c6a?auto=format&fit=crop&w=500&q=80' }
-];
-
-const products = [
-  { id: 'banana', name: 'Fresh Bananas', unit: '6 pcs', price: 48, image: 'https://images.unsplash.com/photo-1603833665858-e61d17a86224?auto=format&fit=crop&w=500&q=85' },
-  { id: 'bread', name: 'Whole Wheat Bread', unit: '400 g', price: 45, image: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=500&q=85' },
-  { id: 'eggs', name: 'Farm Fresh Eggs', unit: '6 pcs', price: 72, image: 'https://images.unsplash.com/photo-1582722872445-44dc5f7e3c8f?auto=format&fit=crop&w=500&q=85' },
-  { id: 'orange', name: 'Fresh Oranges', unit: '1 kg', price: 95, image: 'https://images.unsplash.com/photo-1547514701-42782101795e?auto=format&fit=crop&w=500&q=85' },
-  { id: 'tomato', name: 'Fresh Tomatoes', unit: '500 g', price: 38, image: 'https://images.unsplash.com/photo-1561136594-7f68413baa99?auto=format&fit=crop&w=500&q=85' },
-  { id: 'juice', name: 'Orange Juice', unit: '1 L', price: 110, image: 'https://images.unsplash.com/photo-1600271886742-f049cd451bba?auto=format&fit=crop&w=500&q=85' }
-];
+const stores = [];
+const products = [];
 
 const state = {
   activeTab: 'darkstore',
@@ -68,6 +55,14 @@ function renderHome() {
   const query = state.search.trim().toLowerCase();
   const visibleStores = stores.filter(store => (state.activeCategory === 'all' || store.category === state.activeCategory) && (!query || `${store.name} ${store.category}`.toLowerCase().includes(query)));
   const visibleProducts = products.filter(product => !query || `${product.name} ${product.unit}`.toLowerCase().includes(query));
+
+  if (!stores.length && !products.length) {
+    $('appMain').innerHTML = `<div class="view home-view">
+      ${categoryMarkup()}
+      ${empty('⌂', 'No stores available yet', 'Stores and products will appear here after they are added.')}
+    </div>`;
+    return;
+  }
 
   $('appMain').innerHTML = `<div class="view home-view">
     ${categoryMarkup()}
