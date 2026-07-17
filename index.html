@@ -20,6 +20,7 @@
   <link rel="stylesheet" href="secondary-pages.css">
   <link rel="stylesheet" href="homepage-theme.css">
   <link rel="stylesheet" href="catalog-art.css">
+  <link rel="stylesheet" href="customer-checkout.css">
 </head>
 <body oncontextmenu="return false">
   <div id="app">
@@ -52,6 +53,7 @@
     </div>
 
     <div class="category-nav" id="categoryNav" aria-label="Store categories"></div>
+    <section class="live-order-banner hidden" id="liveOrderBanner" aria-live="polite"></section>
     <main class="app-main" id="appMain"></main>
     <nav class="bottom-nav" id="bottomNav" aria-label="Primary navigation"></nav>
   </div>
@@ -67,6 +69,31 @@
     </div>
     <div class="cart-body" id="cartBody"></div>
     <div class="cart-footer" id="cartFooter">
+      <section class="customer-details-card" aria-labelledby="customerDetailsTitle">
+        <div class="checkout-section-head">
+          <div><small>DELIVERY DETAILS</small><strong id="customerDetailsTitle">Who should receive this order?</strong></div>
+          <span>Required</span>
+        </div>
+        <label class="checkout-field">
+          <span>Full name</span>
+          <input id="customerNameInput" type="text" maxlength="60" autocomplete="name" placeholder="Enter your name">
+        </label>
+        <label class="checkout-field">
+          <span>Phone number</span>
+          <input id="customerPhoneInput" type="tel" inputmode="numeric" maxlength="10" autocomplete="tel" placeholder="10-digit mobile number">
+        </label>
+        <p class="checkout-hint">Your rider may call you for delivery directions.</p>
+      </section>
+
+      <section class="bill-details-card" aria-label="Bill details">
+        <div class="checkout-section-head"><div><small>PAYMENT SUMMARY</small><strong>Bill details</strong></div></div>
+        <div class="bill-row"><span>Item subtotal</span><strong id="cartSubtotal">₹0</strong></div>
+        <div class="bill-row"><span>Delivery fee</span><strong id="cartDeliveryFee">₹0</strong></div>
+        <div class="bill-row"><span>Platform fee</span><strong id="cartPlatformFee">₹0</strong></div>
+        <div class="bill-row bill-total"><span>To pay</span><strong id="cartPayable">₹0</strong></div>
+      </section>
+
+      <div class="checkout-error hidden" id="checkoutError" role="alert"></div>
       <div class="cart-total"><span>Total</span><strong id="cartTotal">₹0</strong></div>
       <button class="checkout-btn" id="checkoutBtn" type="button">Proceed to Buy</button>
     </div>
@@ -100,6 +127,7 @@
   <script type="module" src="customer-firebase.js"></script>
   <script src="app.js" defer></script>
   <script type="module" src="customer-orders.js"></script>
+  <script src="customer-checkout.js" defer></script>
   <script src="profile.js" defer></script>
   <script src="profile-layout.js" defer></script>
   <script src="support.js" defer></script>
