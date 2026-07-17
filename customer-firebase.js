@@ -14,186 +14,54 @@ export const firebaseConfig = {
 export const firebaseApp = initializeApp(firebaseConfig);
 export const auth = getAuth(firebaseApp);
 export const db = getFirestore(firebaseApp);
-
-let authReadyResolve;
-export const authReady = new Promise((resolve) => { authReadyResolve = resolve; });
-
-onAuthStateChanged(auth, async (user) => {
-  if (user) return authReadyResolve(user);
-  try {
-    const credential = await signInAnonymously(auth);
-    authReadyResolve(credential.user);
-  } catch (error) {
-    console.error('Anonymous sign-in failed:', error);
-    authReadyResolve(null);
-  }
+let resolveAuth;
+export const authReady = new Promise(resolve => { resolveAuth = resolve; });
+onAuthStateChanged(auth, async user => {
+  if (user) return resolveAuth(user);
+  try { resolveAuth((await signInAnonymously(auth)).user); }
+  catch (error) { console.error('Anonymous sign-in failed:', error); resolveAuth(null); }
 });
 
-function numberFromStorage(key) {
-  const value = Number.parseFloat(localStorage.getItem(key));
-  return Number.isFinite(value) ? value : null;
+const numberFromStorage = key => { const v=Number.parseFloat(localStorage.getItem(key)); return Number.isFinite(v)?v:null; };
+const numberFromDataset = (el,key) => { const v=Number.parseFloat(el?.dataset?.[key]); return Number.isFinite(v)?v:0; };
+function showError(message){const box=document.getElementById('checkoutError');if(box){box.textContent=message;box.classList.remove('hidden')}const toast=document.getElementById('toast');if(toast){toast.textContent=message;toast.classList.add('show');setTimeout(()=>toast.classList.remove('show'),3000)}}
+function clearError(){const box=document.getElementById('checkoutError');if(box){box.textContent='';box.classList.add('hidden')}}
+function customer(){const name=document.getElementById('customerNameInput')?.value.trim()||'';const phone=document.getElementById('customerPhoneInput')?.value.replace(/\D/g,'')||'';if(name.length<2)throw new Error('Please enter the customer name.');if(!/^[6-9]\d{9}$/.test(phone))throw new Error('Enter a valid 10-digit mobile number.');localStorage.setItem('qkCustomerName',name);localStorage.setItem('qkCustomerPhone',phone);return{name,phone}}
+function dropLocation(){const latitude=numberFromStorage('qkLatitude');const longitude=numberFromStorage('qkLongitude');const address=localStorage.getItem('qkLiveLocation')?.trim();if(latitude===null||longitude===null||!address)throw new Error('Select your delivery location before placing the order.');return{latitude,longitude,address}}
+function cartSummary(){
+  const cards=[...document.querySelectorAll('#cartBody [data-cart-product]')];
+  if(!cards.length)throw new Error('Your cart is empty.');
+  const first=cards[0];
+  const storeId=first.dataset.storeId||'';const merchantId=first.dataset.merchantId||'';
+  if(!storeId||!merchantId)throw new Error('Store information is missing. Reload and try again.');
+  if(cards.some(c=>c.dataset.storeId!==storeId))throw new Error('One order can contain products from only one store.');
+  const items=cards.map(card=>{const quantity=Number.parseInt(card.querySelector('.qty')?.textContent||'1',10)||1;const unitPrice=Number(card.dataset.unitPrice||0);return{productId:card.dataset.productId||'',name:card.querySelector('.product-name')?.textContent?.trim()||'Item',unit:card.querySelector('.product-unit')?.textContent?.trim()||'',quantity,unitPrice,lineTotal:unitPrice*quantity}});
+  return {storeId,merchantId,storeName:first.dataset.storeName||'MyQK Store',storeAddress:first.dataset.storeAddress||'',storeLocation:{latitude:Number(first.dataset.storeLatitude),longitude:Number(first.dataset.storeLongitude)},items,itemCount:items.reduce((n,i)=>n+i.quantity,0)};
 }
 
-function numberFromDataset(element, key) {
-  const value = Number.parseFloat(element?.dataset?.[key]);
-  return Number.isFinite(value) ? value : 0;
-}
-
-function getCartSummary() {
-  const cards = [...document.querySelectorAll('#cartBody [data-cart-product]')];
-  const items = cards.map((card) => {
-    const name = card.querySelector('.product-name')?.textContent?.trim() || 'Item';
-    const unit = card.querySelector('.product-unit')?.textContent?.trim() || '';
-    const store = card.querySelector('.product-store-tag')?.textContent?.trim() || 'QK Store';
-    const quantity = Number.parseInt(card.querySelector('.qty')?.textContent || '1', 10) || 1;
-    const lineTotal = Number(card.querySelector('.product-price')?.textContent?.replace(/[^0-9.]/g, '')) || 0;
-    return { name, unit, store, quantity, lineTotal };
-  });
-  return {
-    items,
-    itemCount: items.reduce((total, item) => total + item.quantity, 0),
-    pickupName: items[0]?.store || 'QK Dark Store'
-  };
-}
-
-function showCheckoutError(message) {
-  const errorBox = document.getElementById('checkoutError');
-  if (errorBox) {
-    errorBox.textContent = message;
-    errorBox.classList.remove('hidden');
-  }
-  const toast = document.getElementById('toast');
-  if (toast) {
-    toast.textContent = message;
-    toast.classList.add('show');
-    window.setTimeout(() => toast.classList.remove('show'), 3000);
-  }
-}
-
-function showOrderPlaced() {
-  const toast = document.getElementById('toast');
-  if (!toast) return;
-  toast.textContent = 'Order placed successfully!';
-  toast.classList.add('show');
-  window.setTimeout(() => toast.classList.remove('show'), 3000);
-}
-
-function openTrackPage() {
-  document.getElementById('cartOverlay')?.classList.remove('open');
-  document.body.classList.remove('locked');
-  const trackButton = document.querySelector('[data-tab="track"]');
-  if (trackButton) trackButton.click();
-}
-
-function clearCheckoutError() {
-  const errorBox = document.getElementById('checkoutError');
-  if (errorBox) {
-    errorBox.textContent = '';
-    errorBox.classList.add('hidden');
-  }
-}
-
-function setCheckoutState(button, loading) {
-  button.disabled = loading;
-  button.textContent = loading ? 'Placing order…' : 'Proceed to Buy';
-}
-
-function requireCustomerDetails() {
-  const name = document.getElementById('customerNameInput')?.value.trim() || '';
-  const phone = document.getElementById('customerPhoneInput')?.value.replace(/\D/g, '') || '';
-  if (name.length < 2) throw new Error('Please enter the customer name.');
-  if (!/^[6-9]\d{9}$/.test(phone)) throw new Error('Enter a valid 10-digit mobile number.');
-  localStorage.setItem('qkCustomerName', name);
-  localStorage.setItem('qkCustomerPhone', phone);
-  return { name, phone };
-}
-
-function requireCustomerLocation() {
-  const latitude = numberFromStorage('qkLatitude');
-  const longitude = numberFromStorage('qkLongitude');
-  const address = localStorage.getItem('qkLiveLocation')?.trim();
-  if (latitude === null || longitude === null || !address) {
-    document.getElementById('cartOverlay')?.classList.remove('open');
-    document.getElementById('locationSheet')?.classList.add('show');
-    document.body.classList.add('locked');
-    throw new Error('Select your delivery location before placing the order.');
-  }
-  return { latitude, longitude, address };
-}
-
-async function createOrder() {
-  const user = await authReady;
-  if (!user) throw new Error('Could not connect to Firebase. Please retry.');
-  const cart = getCartSummary();
-  if (!cart.itemCount) throw new Error('Your cart is empty.');
-
-  const customer = requireCustomerDetails();
-  const customerLocation = requireCustomerLocation();
-  const cartFooter = document.getElementById('cartFooter');
-  const subtotal = numberFromDataset(cartFooter, 'subtotal');
-  const deliveryFee = numberFromDataset(cartFooter, 'deliveryFee');
-  const platformFee = numberFromDataset(cartFooter, 'platformFee');
-  const totalAmount = numberFromDataset(cartFooter, 'payable');
-
-  return addDoc(collection(db, 'orders'), {
-    orderNumber: `QK${Date.now().toString().slice(-6)}`,
-    customerId: user.uid,
-    customerName: customer.name,
-    customerPhone: customer.phone,
-    status: 'pending',
-    assignedRiderId: null,
-    pickup: {
-      name: cart.pickupName,
-      address: `${cart.pickupName} fulfilment point`,
-      location: { latitude: customerLocation.latitude + 0.002, longitude: customerLocation.longitude + 0.002 }
-    },
-    drop: {
-      name: customer.name,
-      address: customerLocation.address,
-      location: { latitude: customerLocation.latitude, longitude: customerLocation.longitude }
-    },
-    items: cart.items,
-    itemCount: cart.itemCount,
-    paymentMode: 'Cash on Delivery',
-    subtotal,
-    deliveryFee,
-    platformFee,
-    totalAmount,
-    riderPayout: 42,
-    distanceKm: 0.4,
-    durationText: '10 min',
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp()
+async function createOrder(){
+  const user=await authReady;if(!user)throw new Error('Could not connect to Firebase. Please retry.');
+  const cart=cartSummary();const c=customer();const drop=dropLocation();const footer=document.getElementById('cartFooter');
+  return addDoc(collection(db,'orders'),{
+    orderNumber:`QK${Date.now().toString().slice(-6)}`,
+    customerId:user.uid,customerName:c.name,customerPhone:c.phone,
+    merchantId:cart.merchantId,storeId:cart.storeId,storeName:cart.storeName,
+    status:'pending_merchant',assignedRiderId:null,
+    pickup:{name:cart.storeName,address:cart.storeAddress||`${cart.storeName} pickup`,location:cart.storeLocation},
+    drop:{name:c.name,address:drop.address,location:{latitude:drop.latitude,longitude:drop.longitude}},
+    items:cart.items,itemCount:cart.itemCount,paymentMode:'Cash on Delivery',
+    subtotal:numberFromDataset(footer,'subtotal'),deliveryFee:numberFromDataset(footer,'deliveryFee'),platformFee:numberFromDataset(footer,'platformFee'),totalAmount:numberFromDataset(footer,'payable'),
+    riderPayout:42,createdAt:serverTimestamp(),updatedAt:serverTimestamp()
   });
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-  const checkoutButton = document.getElementById('checkoutBtn');
-  if (!checkoutButton) return;
-
-  checkoutButton.addEventListener('click', async (event) => {
-    if (checkoutButton.dataset.firebaseCommitted === 'true') {
-      delete checkoutButton.dataset.firebaseCommitted;
-      return;
-    }
-
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    clearCheckoutError();
-    setCheckoutState(checkoutButton, true);
-
-    try {
-      const order = await createOrder();
-      localStorage.setItem('qkLatestOrderId', order.id);
-      checkoutButton.dataset.firebaseCommitted = 'true';
-      checkoutButton.click();
-      showOrderPlaced();
-      window.setTimeout(openTrackPage, 250);
-    } catch (error) {
-      console.error('Order creation failed:', error);
-      showCheckoutError(error?.message || 'Could not place order. Try again.');
-    } finally {
-      setCheckoutState(checkoutButton, false);
-    }
-  }, true);
+document.addEventListener('DOMContentLoaded',()=>{
+  const button=document.getElementById('checkoutBtn');if(!button)return;
+  document.getElementById('customerNameInput').value=localStorage.getItem('qkCustomerName')||'';
+  document.getElementById('customerPhoneInput').value=localStorage.getItem('qkCustomerPhone')||'';
+  button.addEventListener('click',async event=>{
+    event.preventDefault();event.stopImmediatePropagation();clearError();button.disabled=true;button.textContent='Placing order…';
+    try{const ref=await createOrder();localStorage.setItem('qkLatestOrderId',ref.id);document.getElementById('cartOverlay')?.classList.remove('open');const toast=document.getElementById('toast');if(toast){toast.textContent='Order sent to merchant!';toast.classList.add('show')}setTimeout(()=>document.querySelector('[data-tab="track"]')?.click(),250)}
+    catch(error){console.error(error);showError(error.message||'Could not place order. Try again.')}finally{button.disabled=false;button.textContent='Proceed to Buy'}
+  },true);
 });
