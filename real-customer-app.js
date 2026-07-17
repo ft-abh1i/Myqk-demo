@@ -10,12 +10,12 @@ const navTabs = [
 ];
 
 const categories = [
-  ['all', 'All Stores', '🛒'],
-  ['pharmacy', 'Pharmacy', '✚'],
-  ['groceries', 'Groceries', '🧺'],
-  ['fruits', 'Fruits & Veg', '🌿'],
-  ['snacks', 'Snacks', '▣'],
-  ['more', 'More', '▦']
+  ['all', 'All Stores', '🛒', ''],
+  ['pharmacy', 'Pharmacy', '', 'https://i.ibb.co/j9XGMzjp/file-00000000725071fa9b42b654231acd01.png'],
+  ['groceries', 'Groceries', '', 'https://i.ibb.co/qFjzKbkd/file-0000000071c871faaff8e4c5b3e46966.png'],
+  ['fruits', 'Fruits & Veg', '🌿', ''],
+  ['snacks', 'Snacks', '', 'https://i.ibb.co/XZn7QhH1/file-00000000d97c71faa65bee1bb8f661f3.png'],
+  ['more', 'More', '▦', '']
 ];
 
 const stores = [
@@ -58,9 +58,9 @@ function empty(icon, title, subtitle) {
 }
 
 function categoryMarkup() {
-  return `<div class="home-category-strip" id="categoryNav">${categories.map(([id, label, icon], index) => `
+  return `<div class="home-category-strip" id="categoryNav">${categories.map(([id, label, icon, image], index) => `
     <button class="home-category ${state.activeCategory === id ? 'active' : ''} category-${index + 1}" data-category="${id}" type="button">
-      <span class="home-category-icon">${icon}</span><span>${label}</span>
+      <span class="home-category-icon">${image ? `<img src="${image}" alt="" loading="lazy">` : icon}</span><span>${label}</span>
     </button>`).join('')}</div>`;
 }
 
