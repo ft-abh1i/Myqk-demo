@@ -21,8 +21,14 @@ function polishFooterNav() {
 
 document.addEventListener('DOMContentLoaded', () => {
   const nav = document.getElementById('bottomNav');
-  if (!nav) return;
+  if (nav) {
+    polishFooterNav();
+    new MutationObserver(polishFooterNav).observe(nav, { childList: true });
+  }
 
-  polishFooterNav();
-  new MutationObserver(polishFooterNav).observe(nav, { childList: true });
+  if (!document.querySelector('script[src="app-history.js"]')) {
+    const historyScript = document.createElement('script');
+    historyScript.src = 'app-history.js';
+    document.body.appendChild(historyScript);
+  }
 });
