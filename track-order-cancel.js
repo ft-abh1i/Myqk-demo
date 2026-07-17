@@ -13,10 +13,16 @@ let currentUser = null;
 let pendingOrder = null;
 let cancelling = false;
 
+const CANCELLABLE_STATUSES = new Set(['pending', 'pending_merchant']);
+
 function timestampMs(value) {
   if (value?.toMillis) return value.toMillis();
   if (value?.seconds) return value.seconds * 1000;
   return 0;
+}
+
+function isCancellable(order) {
+  return Boolean(order && CANCELLABLE_STATUSES.has(order.status) && !order.assignedRiderId);
 }
 
 function showToast(message) {
@@ -46,7 +52,7 @@ function renderControl() {
   const trackView = document.querySelector('.uq-track-view');
   const existing = document.getElementById('uqTrackCancelCard');
 
-  if (!trackView || !pendingOrder || pendingOrder.status !== 'pending' || pendingOrder.assignedRiderId) {
+  if (!trackView || !isCancellable(pendingOrder)) {
     existing?.remove();
     return;
   }
@@ -83,10 +89,12 @@ async function cancelPendingOrder(button) {
 
       const order = snapshot.data();
       if (order.customerId !== currentUser.uid) throw new Error('NOT_ALLOWED');
-      if (order.status !== 'pending' || order.assignedRiderId) throw new Error('ALREADY_ACCEPTED');
+      if (!isCancellable(order)) throw new Error('ALREADY_ACCEPTED');
 
       transaction.update(orderRef, {
         status: 'cancelled',
+        cancelledBy: 'customer',
+        cancellationReason: 'Cancelled by customer before rider assignment',
         cancelledAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
@@ -96,9 +104,12 @@ async function cancelPendingOrder(button) {
   } catch (error) {
     console.error('Track page cancellation failed:', error);
     const accepted = error?.message === 'ALREADY_ACCEPTED';
+    const denied = error?.code === 'permission-denied' || error?.message === 'NOT_ALLOWED';
     showToast(accepted
       ? 'A rider has already accepted this order. It can no longer be cancelled.'
-      : 'Could not cancel the order. Please try again.');
+      : denied
+        ? 'Cancellation permission denied. Check Firestore rules.'
+        : 'Could not cancel the order. Please try again.');
     if (!accepted) {
       button.disabled = false;
       button.textContent = 'Cancel order';
@@ -117,7 +128,7 @@ async function initialize() {
   onSnapshot(customerOrders, (snapshot) => {
     pendingOrder = snapshot.docs
       .map((item) => ({ id: item.id, ...item.data() }))
-      .filter((order) => order.status === 'pending' && !order.assignedRiderId)
+      .filter(isCancellable)
       .sort((a, b) => timestampMs(b.createdAt) - timestampMs(a.createdAt))[0] || null;
     window.setTimeout(renderControl, 0);
   }, (error) => console.error('Track cancellation listener failed:', error));
