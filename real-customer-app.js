@@ -48,14 +48,50 @@ function openCart(){renderCart();$('cartOverlay').classList.add('open')}
 function renderNav(){$('bottomNav').innerHTML=navTabs.map(([id,label,icon])=>`<button class="nav-item ${state.activeTab===id?'active':''}" data-tab="${id}" type="button"><span>${icon}</span><span class="nav-label">${label}</span><span class="nav-dot"></span></button>`).join('')}
 function switchTab(tab){state.activeTab=tab;renderNav();$('searchWrap').style.display=tab==='darkstore'?'':'none';$('categoryNav').style.display=tab==='darkstore'&&!state.search?'':'none';if(tab==='darkstore')renderMain();else if(tab==='profile')$('appMain').innerHTML=empty('○','Customer profile','Your account and saved details appear here.');else $('appMain').innerHTML=empty(tab==='orders'?'▤':'⌖',tab==='orders'?'No orders yet':'Nothing to track',tab==='orders'?'Your order history will appear here.':'Your active delivery will appear here.');}
 
+function hasSavedLocation(){
+  const latitude=Number.parseFloat(localStorage.getItem('qkLatitude'));
+  const longitude=Number.parseFloat(localStorage.getItem('qkLongitude'));
+  const address=localStorage.getItem('qkLiveLocation')?.trim();
+  return Number.isFinite(latitude)&&Number.isFinite(longitude)&&Boolean(address);
+}
+
+function requestCustomerLocation(){
+  $('locationSheet').classList.add('show');
+  $('locationStatus').textContent='Detecting your current location…';
+  if(!navigator.geolocation){
+    $('manualAddressBox').classList.remove('hidden');
+    $('locationStatus').textContent='Location is not supported. Please enter your address manually.';
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(
+    position=>{
+      localStorage.setItem('qkLatitude',String(position.coords.latitude));
+      localStorage.setItem('qkLongitude',String(position.coords.longitude));
+      $('manualAddressBox').classList.remove('hidden');
+      $('locationStatus').textContent='Location detected. Add your exact delivery address.';
+    },
+    error=>{
+      console.warn('Location request failed:',error);
+      $('manualAddressBox').classList.remove('hidden');
+      $('locationStatus').textContent='Location permission is required, or enter your address manually.';
+      toast('Location permission required.');
+    },
+    {enableHighAccuracy:true,timeout:12000,maximumAge:60000}
+  );
+}
+
 document.addEventListener('click',e=>{const category=e.target.closest('[data-category]');if(category){state.activeCategory=category.dataset.category;state.activeStoreId=null;renderCategories();renderMain();return}const storeEl=e.target.closest('[data-store]');if(storeEl){state.activeStoreId=storeEl.dataset.store;state.search='';$('searchInput').value='';renderMain();return}if(e.target.closest('#storeBack')){state.activeStoreId=null;renderMain();return}const card=e.target.closest('[data-product][data-store-id]');if(card){const store=state.stores.find(s=>s.id===card.dataset.storeId);const product=store?.products.find(p=>p.id===card.dataset.product);if(!product)return;const key=cartKey(store.id,product.id);if(e.target.closest('.quantity-minus')){state.quantities[key]=Math.max(1,(state.quantities[key]||1)-1);card.querySelector('.qty').textContent=state.quantities[key]}if(e.target.closest('.quantity-plus')){state.quantities[key]=Math.min(product.stock,(state.quantities[key]||1)+1);card.querySelector('.qty').textContent=state.quantities[key]}if(e.target.closest('.add-btn,.buy-btn')){const qty=state.quantities[key]||1;if(addToCart(store,product,qty)){state.quantities[key]=1;card.querySelector('.qty').textContent='1';toast(`${qty} × ${product.name} added`);if(e.target.closest('.buy-btn'))openCart()}}return}const cartCard=e.target.closest('[data-cart-product]');if(cartCard){const key=cartCard.dataset.cartProduct;if(e.target.closest('.cart-minus')){state.cart[key].quantity--;if(state.cart[key].quantity<=0)delete state.cart[key];updateBadge();renderCart()}if(e.target.closest('.cart-plus')){state.cart[key].quantity=Math.min(state.cart[key].product.stock,state.cart[key].quantity+1);updateBadge();renderCart()}return}const tab=e.target.closest('[data-tab]');if(tab)switchTab(tab.dataset.tab)});
 
 document.addEventListener('DOMContentLoaded',()=>{
   $('searchInput').addEventListener('input',e=>{state.search=e.target.value;$('searchClear').classList.toggle('show',!!state.search);$('categoryNav').style.display=state.search?'none':'';renderMain()});
   $('searchClear').addEventListener('click',()=>{state.search='';$('searchInput').value='';$('searchClear').classList.remove('show');$('categoryNav').style.display='';renderMain()});
   $('cartBtn').addEventListener('click',openCart);$('cartClose').addEventListener('click',()=>$('cartOverlay').classList.remove('open'));
-  $('locationBtn').addEventListener('click',()=>$('locationSheet').classList.add('show'));$('locationClose').addEventListener('click',()=>$('locationSheet').classList.remove('show'));
-  $('allowLocationBtn').addEventListener('click',()=>navigator.geolocation?.getCurrentPosition(p=>{localStorage.setItem('qkLatitude',p.coords.latitude);localStorage.setItem('qkLongitude',p.coords.longitude);$('manualAddressBox').classList.remove('hidden');$('locationStatus').textContent='Location detected. Add exact address.'},()=>toast('Location permission required.')));
+  $('locationBtn').addEventListener('click',requestCustomerLocation);
+  $('locationClose').addEventListener('click',()=>{if(hasSavedLocation())$('locationSheet').classList.remove('show');else toast('Delivery location select karna required hai.');});
+  $('allowLocationBtn').addEventListener('click',requestCustomerLocation);
   $('saveAddressBtn').addEventListener('click',()=>{const address=[$('houseInput').value,$('streetInput').value].filter(Boolean).join(', ');if(!address)return toast('Exact address add karo.');localStorage.setItem('qkLiveLocation',address);$('locationAddress').textContent=address;$('locationSheet').classList.remove('show')});
+  const savedAddress=localStorage.getItem('qkLiveLocation')?.trim();
+  if(savedAddress)$('locationAddress').textContent=savedAddress;
   renderCategories();renderNav();loadCatalog();
+  if(!hasSavedLocation())setTimeout(requestCustomerLocation,250);
 });
