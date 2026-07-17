@@ -11,7 +11,7 @@ import {
   serverTimestamp
 } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js';
 
-const firebaseConfig = {
+export const firebaseConfig = {
   apiKey: 'AIzaSyDbNDNI1a69VDZmLo7Se6LNGPLD6A8_MmE',
   authDomain: 'buyqk-rider.firebaseapp.com',
   projectId: 'buyqk-rider',
@@ -20,12 +20,12 @@ const firebaseConfig = {
   appId: '1:61147606971:web:d69dd4fcf5c0a0fea01e9e'
 };
 
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
+export const firebaseApp = initializeApp(firebaseConfig);
+export const auth = getAuth(firebaseApp);
+export const db = getFirestore(firebaseApp);
 
 let authReadyResolve;
-const authReady = new Promise((resolve) => {
+export const authReady = new Promise((resolve) => {
   authReadyResolve = resolve;
 });
 
@@ -44,9 +44,9 @@ onAuthStateChanged(auth, async (user) => {
   }
 });
 
-function readNumber(key, fallback) {
+function readRequiredNumber(key) {
   const value = Number.parseFloat(localStorage.getItem(key));
-  return Number.isFinite(value) ? value : fallback;
+  return Number.isFinite(value) ? value : null;
 }
 
 function getCartSummary() {
@@ -71,6 +71,21 @@ function setCheckoutState(button, loading) {
   button.textContent = loading ? 'Placing order…' : 'Proceed to Buy';
 }
 
+function requireCustomerLocation() {
+  const latitude = readRequiredNumber('qkLatitude');
+  const longitude = readRequiredNumber('qkLongitude');
+  const address = localStorage.getItem('qkLiveLocation')?.trim();
+
+  if (latitude === null || longitude === null || !address) {
+    document.getElementById('cartOverlay')?.classList.remove('open');
+    document.getElementById('locationSheet')?.classList.add('show');
+    document.body.classList.add('locked');
+    throw new Error('Delivery location select karo, phir order place karo.');
+  }
+
+  return { latitude, longitude, address };
+}
+
 async function createOrder() {
   const user = await authReady;
   if (!user) throw new Error('Could not sign in to Firebase.');
@@ -78,12 +93,9 @@ async function createOrder() {
   const cart = getCartSummary();
   if (!cart.itemCount) throw new Error('Your cart is empty.');
 
-  const customerLatitude = readNumber('qkLatitude', 25.615);
-  const customerLongitude = readNumber('qkLongitude', 85.11);
-  const address = localStorage.getItem('qkLiveLocation') || 'Customer location';
-
-  const pickupLatitude = customerLatitude + 0.002;
-  const pickupLongitude = customerLongitude + 0.002;
+  const customerLocation = requireCustomerLocation();
+  const pickupLatitude = customerLocation.latitude + 0.002;
+  const pickupLongitude = customerLocation.longitude + 0.002;
 
   return addDoc(collection(db, 'orders'), {
     orderNumber: `QK${Date.now().toString().slice(-6)}`,
@@ -102,10 +114,10 @@ async function createOrder() {
     },
     drop: {
       name: 'Customer',
-      address,
+      address: customerLocation.address,
       location: {
-        latitude: customerLatitude,
-        longitude: customerLongitude
+        latitude: customerLocation.latitude,
+        longitude: customerLocation.longitude
       }
     },
     items: cart.items,
@@ -131,7 +143,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     event.preventDefault();
     event.stopImmediatePropagation();
-
     setCheckoutState(checkoutButton, true);
 
     try {
@@ -145,7 +156,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (toast) {
         toast.textContent = error?.message || 'Could not place order. Try again.';
         toast.classList.add('show');
-        window.setTimeout(() => toast.classList.remove('show'), 2500);
+        window.setTimeout(() => toast.classList.remove('show'), 3000);
       }
     } finally {
       setCheckoutState(checkoutButton, false);
