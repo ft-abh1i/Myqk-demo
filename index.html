@@ -26,110 +26,32 @@
   <div id="app">
     <header class="app-header" id="appHeader">
       <button class="location-btn" id="locationBtn" type="button" aria-label="Select delivery location">
-        <span class="location-pin" aria-hidden="true">
-          <svg viewBox="0 0 24 24"><path d="M12 22s7-7.58 7-13A7 7 0 1 0 5 9c0 5.42 7 13 7 13Z"/><circle cx="12" cy="9" r="2.5"/></svg>
-        </span>
-        <span class="location-text">
-          <span class="location-label">Delivering to</span>
-          <span class="location-address">
-            <span id="locationAddress">Select your area</span>
-            <svg class="chevron" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
-          </span>
-        </span>
+        <span class="location-pin" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 22s7-7.58 7-13A7 7 0 1 0 5 9c0 5.42 7 13 7 13Z"/><circle cx="12" cy="9" r="2.5"/></svg></span>
+        <span class="location-text"><span class="location-label">Delivering to</span><span class="location-address"><span id="locationAddress">Select your area</span><svg class="chevron" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></span></span>
       </button>
-
-      <button class="cart-btn" id="cartBtn" type="button" aria-label="Open cart">
-        <svg viewBox="0 0 24 24"><path d="M3 4h2l2.4 12.2a2 2 0 0 0 2 1.6h7.6a2 2 0 0 0 2-1.6L21 8H6"/><circle cx="10" cy="21" r="1.4"/><circle cx="18" cy="21" r="1.4"/></svg>
-        <span class="cart-badge" id="cartBadge">0</span>
-      </button>
+      <button class="cart-btn" id="cartBtn" type="button" aria-label="Open cart"><svg viewBox="0 0 24 24"><path d="M3 4h2l2.4 12.2a2 2 0 0 0 2 1.6h7.6a2 2 0 0 0 2-1.6L21 8H6"/><circle cx="10" cy="21" r="1.4"/><circle cx="18" cy="21" r="1.4"/></svg><span class="cart-badge" id="cartBadge">0</span></button>
     </header>
-
-    <div class="search-wrap" id="searchWrap">
-      <label class="search-bar">
-        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-        <input id="searchInput" type="search" placeholder="Search products or stores" autocomplete="off">
-        <button class="search-clear" id="searchClear" type="button" aria-label="Clear search">×</button>
-      </label>
-    </div>
-
+    <div class="search-wrap" id="searchWrap"><label class="search-bar"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><input id="searchInput" type="search" placeholder="Search products or stores" autocomplete="off"><button class="search-clear" id="searchClear" type="button" aria-label="Clear search">×</button></label></div>
     <div class="category-nav" id="categoryNav" aria-label="Store categories"></div>
     <section class="live-order-banner hidden" id="liveOrderBanner" aria-live="polite"></section>
     <main class="app-main" id="appMain"></main>
     <nav class="bottom-nav" id="bottomNav" aria-label="Primary navigation"></nav>
   </div>
-
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
-
   <section class="cart-overlay" id="cartOverlay" aria-label="Cart">
-    <div class="overlay-header">
-      <button class="round-back" id="cartClose" type="button" aria-label="Close cart">
-        <svg viewBox="0 0 24 24"><path d="m15 19-7-7 7-7"/></svg>
-      </button>
-      <h2>Your Cart</h2>
-    </div>
+    <div class="overlay-header"><button class="round-back" id="cartClose" type="button" aria-label="Close cart"><svg viewBox="0 0 24 24"><path d="m15 19-7-7 7-7"/></svg></button><h2>Your Cart</h2></div>
     <div class="cart-body" id="cartBody"></div>
     <div class="cart-footer" id="cartFooter">
-      <section class="customer-details-card" aria-labelledby="customerDetailsTitle">
-        <div class="checkout-section-head">
-          <div><small>DELIVERY DETAILS</small><strong id="customerDetailsTitle">Who should receive this order?</strong></div>
-          <span>Required</span>
-        </div>
-        <label class="checkout-field">
-          <span>Full name</span>
-          <input id="customerNameInput" type="text" maxlength="60" autocomplete="name" placeholder="Enter your name">
-        </label>
-        <label class="checkout-field">
-          <span>Phone number</span>
-          <input id="customerPhoneInput" type="tel" inputmode="numeric" maxlength="10" autocomplete="tel" placeholder="10-digit mobile number">
-        </label>
-        <p class="checkout-hint">Your rider may call you for delivery directions.</p>
-      </section>
-
-      <section class="bill-details-card" aria-label="Bill details">
-        <div class="checkout-section-head"><div><small>PAYMENT SUMMARY</small><strong>Bill details</strong></div></div>
-        <div class="bill-row"><span>Item subtotal</span><strong id="cartSubtotal">₹0</strong></div>
-        <div class="bill-row"><span>Delivery fee</span><strong id="cartDeliveryFee">₹0</strong></div>
-        <div class="bill-row"><span>Platform fee</span><strong id="cartPlatformFee">₹0</strong></div>
-        <div class="bill-row bill-total"><span>To pay</span><strong id="cartPayable">₹0</strong></div>
-      </section>
-
-      <div class="checkout-error hidden" id="checkoutError" role="alert"></div>
-      <div class="cart-total"><span>Total</span><strong id="cartTotal">₹0</strong></div>
-      <button class="checkout-btn" id="checkoutBtn" type="button">Proceed to Buy</button>
+      <section class="customer-details-card" aria-labelledby="customerDetailsTitle"><div class="checkout-section-head"><div><small>DELIVERY DETAILS</small><strong id="customerDetailsTitle">Who should receive this order?</strong></div><span>Required</span></div><label class="checkout-field"><span>Full name</span><input id="customerNameInput" type="text" maxlength="60" autocomplete="name" placeholder="Enter your name"></label><label class="checkout-field"><span>Phone number</span><input id="customerPhoneInput" type="tel" inputmode="numeric" maxlength="10" autocomplete="tel" placeholder="10-digit mobile number"></label><p class="checkout-hint">Your rider may call you for delivery directions.</p></section>
+      <section class="bill-details-card" aria-label="Bill details"><div class="checkout-section-head"><div><small>PAYMENT SUMMARY</small><strong>Bill details</strong></div></div><div class="bill-row"><span>Item subtotal</span><strong id="cartSubtotal">₹0</strong></div><div class="bill-row"><span>Delivery fee</span><strong id="cartDeliveryFee">₹0</strong></div><div class="bill-row"><span>Platform fee</span><strong id="cartPlatformFee">₹0</strong></div><div class="bill-row bill-total"><span>To pay</span><strong id="cartPayable">₹0</strong></div></section>
+      <div class="checkout-error hidden" id="checkoutError" role="alert"></div><div class="cart-total"><span>Total</span><strong id="cartTotal">₹0</strong></div><button class="checkout-btn" id="checkoutBtn" type="button">Proceed to Buy</button>
     </div>
   </section>
-
   <section class="sheet" id="locationSheet" role="dialog" aria-modal="true" aria-labelledby="locationTitle">
-    <div class="sheet-panel">
-      <div class="sheet-head">
-        <h2 id="locationTitle">Select location</h2>
-        <button class="sheet-close" id="locationClose" type="button" aria-label="Close location sheet">×</button>
-      </div>
-
-      <button class="location-access-btn" id="allowLocationBtn" type="button">Give location access</button>
-
-      <div class="detected-location hidden" id="detectedLocationBox">
-        <small>DETECTED LOCATION</small>
-        <strong id="detectedLocationText"></strong>
-      </div>
-
-      <div class="manual-address hidden" id="manualAddressBox">
-        <p>Add exact address</p>
-        <input id="houseInput" type="text" placeholder="House / Flat / Floor" autocomplete="address-line1">
-        <input id="streetInput" type="text" placeholder="Street / Area / Landmark" autocomplete="address-line2">
-        <button class="save-address-btn" id="saveAddressBtn" type="button">Save address</button>
-        <button class="use-current-location-btn" id="useCurrentLocationBtn" type="button" onclick="document.getElementById('allowLocationBtn').click()" aria-label="Detect and use current location">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="8"/></svg>
-          <span>Use current location</span>
-        </button>
-      </div>
-
-      <p class="location-status" id="locationStatus">Tap Give location access to detect your area.</p>
-    </div>
+    <div class="sheet-panel"><div class="sheet-head"><h2 id="locationTitle">Select location</h2><button class="sheet-close" id="locationClose" type="button" aria-label="Close location sheet">×</button></div><button class="location-access-btn" id="allowLocationBtn" type="button">Give location access</button><div class="detected-location hidden" id="detectedLocationBox"><small>DETECTED LOCATION</small><strong id="detectedLocationText"></strong></div><div class="manual-address hidden" id="manualAddressBox"><p>Add exact address</p><input id="houseInput" type="text" placeholder="House / Flat / Floor" autocomplete="address-line1"><input id="streetInput" type="text" placeholder="Street / Area / Landmark" autocomplete="address-line2"><button class="save-address-btn" id="saveAddressBtn" type="button">Save address</button><button class="use-current-location-btn" id="useCurrentLocationBtn" type="button" onclick="document.getElementById('allowLocationBtn').click()" aria-label="Detect and use current location"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="8"/></svg><span>Use current location</span></button></div><p class="location-status" id="locationStatus">Tap Give location access to detect your area.</p></div>
   </section>
-
   <script type="module" src="customer-firebase.js"></script>
-  <script src="app.js" defer></script>
+  <script type="module" src="real-customer-app.js"></script>
   <script type="module" src="customer-orders.js"></script>
   <script type="module" src="track-order-cancel.js"></script>
   <script type="module" src="customer-live-rider.js"></script>
