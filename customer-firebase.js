@@ -1,15 +1,6 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js';
-import {
-  getAuth,
-  onAuthStateChanged,
-  signInAnonymously
-} from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js';
-import {
-  addDoc,
-  collection,
-  getFirestore,
-  serverTimestamp
-} from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js';
+import { getAuth, onAuthStateChanged, signInAnonymously } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js';
+import { addDoc, collection, getFirestore, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js';
 
 export const firebaseConfig = {
   apiKey: 'AIzaSyDbNDNI1a69VDZmLo7Se6LNGPLD6A8_MmE',
@@ -25,16 +16,10 @@ export const auth = getAuth(firebaseApp);
 export const db = getFirestore(firebaseApp);
 
 let authReadyResolve;
-export const authReady = new Promise((resolve) => {
-  authReadyResolve = resolve;
-});
+export const authReady = new Promise((resolve) => { authReadyResolve = resolve; });
 
 onAuthStateChanged(auth, async (user) => {
-  if (user) {
-    authReadyResolve(user);
-    return;
-  }
-
+  if (user) return authReadyResolve(user);
   try {
     const credential = await signInAnonymously(auth);
     authReadyResolve(credential.user);
@@ -44,9 +29,14 @@ onAuthStateChanged(auth, async (user) => {
   }
 });
 
-function readRequiredNumber(key) {
+function numberFromStorage(key) {
   const value = Number.parseFloat(localStorage.getItem(key));
   return Number.isFinite(value) ? value : null;
+}
+
+function numberFromDataset(element, key) {
+  const value = Number.parseFloat(element?.dataset?.[key]);
+  return Number.isFinite(value) ? value : 0;
 }
 
 function getCartSummary() {
@@ -56,9 +46,9 @@ function getCartSummary() {
     const unit = card.querySelector('.product-unit')?.textContent?.trim() || '';
     const store = card.querySelector('.product-store-tag')?.textContent?.trim() || 'QK Store';
     const quantity = Number.parseInt(card.querySelector('.qty')?.textContent || '1', 10) || 1;
-    return { name, unit, store, quantity };
+    const lineTotal = Number(card.querySelector('.product-price')?.textContent?.replace(/[^0-9.]/g, '')) || 0;
+    return { name, unit, store, quantity, lineTotal };
   });
-
   return {
     items,
     itemCount: items.reduce((total, item) => total + item.quantity, 0),
@@ -66,63 +56,94 @@ function getCartSummary() {
   };
 }
 
+function showCheckoutError(message) {
+  const errorBox = document.getElementById('checkoutError');
+  if (errorBox) {
+    errorBox.textContent = message;
+    errorBox.classList.remove('hidden');
+  }
+  const toast = document.getElementById('toast');
+  if (toast) {
+    toast.textContent = message;
+    toast.classList.add('show');
+    window.setTimeout(() => toast.classList.remove('show'), 3000);
+  }
+}
+
+function clearCheckoutError() {
+  const errorBox = document.getElementById('checkoutError');
+  if (errorBox) {
+    errorBox.textContent = '';
+    errorBox.classList.add('hidden');
+  }
+}
+
 function setCheckoutState(button, loading) {
   button.disabled = loading;
   button.textContent = loading ? 'Placing order…' : 'Proceed to Buy';
 }
 
-function requireCustomerLocation() {
-  const latitude = readRequiredNumber('qkLatitude');
-  const longitude = readRequiredNumber('qkLongitude');
-  const address = localStorage.getItem('qkLiveLocation')?.trim();
+function requireCustomerDetails() {
+  const name = document.getElementById('customerNameInput')?.value.trim() || '';
+  const phone = document.getElementById('customerPhoneInput')?.value.replace(/\D/g, '') || '';
+  if (name.length < 2) throw new Error('Please enter the customer name.');
+  if (!/^[6-9]\d{9}$/.test(phone)) throw new Error('Enter a valid 10-digit mobile number.');
+  localStorage.setItem('qkCustomerName', name);
+  localStorage.setItem('qkCustomerPhone', phone);
+  return { name, phone };
+}
 
+function requireCustomerLocation() {
+  const latitude = numberFromStorage('qkLatitude');
+  const longitude = numberFromStorage('qkLongitude');
+  const address = localStorage.getItem('qkLiveLocation')?.trim();
   if (latitude === null || longitude === null || !address) {
     document.getElementById('cartOverlay')?.classList.remove('open');
     document.getElementById('locationSheet')?.classList.add('show');
     document.body.classList.add('locked');
-    throw new Error('Delivery location select karo, phir order place karo.');
+    throw new Error('Select your delivery location before placing the order.');
   }
-
   return { latitude, longitude, address };
 }
 
 async function createOrder() {
   const user = await authReady;
-  if (!user) throw new Error('Could not sign in to Firebase.');
-
+  if (!user) throw new Error('Could not connect to Firebase. Please retry.');
   const cart = getCartSummary();
   if (!cart.itemCount) throw new Error('Your cart is empty.');
 
+  const customer = requireCustomerDetails();
   const customerLocation = requireCustomerLocation();
-  const pickupLatitude = customerLocation.latitude + 0.002;
-  const pickupLongitude = customerLocation.longitude + 0.002;
+  const cartFooter = document.getElementById('cartFooter');
+  const subtotal = numberFromDataset(cartFooter, 'subtotal');
+  const deliveryFee = numberFromDataset(cartFooter, 'deliveryFee');
+  const platformFee = numberFromDataset(cartFooter, 'platformFee');
+  const totalAmount = numberFromDataset(cartFooter, 'payable');
 
   return addDoc(collection(db, 'orders'), {
     orderNumber: `QK${Date.now().toString().slice(-6)}`,
     customerId: user.uid,
-    customerName: 'Guest Customer',
-    customerPhone: '',
+    customerName: customer.name,
+    customerPhone: customer.phone,
     status: 'pending',
     assignedRiderId: null,
     pickup: {
       name: cart.pickupName,
       address: `${cart.pickupName} fulfilment point`,
-      location: {
-        latitude: pickupLatitude,
-        longitude: pickupLongitude
-      }
+      location: { latitude: customerLocation.latitude + 0.002, longitude: customerLocation.longitude + 0.002 }
     },
     drop: {
-      name: 'Customer',
+      name: customer.name,
       address: customerLocation.address,
-      location: {
-        latitude: customerLocation.latitude,
-        longitude: customerLocation.longitude
-      }
+      location: { latitude: customerLocation.latitude, longitude: customerLocation.longitude }
     },
     items: cart.items,
     itemCount: cart.itemCount,
     paymentMode: 'Cash on Delivery',
+    subtotal,
+    deliveryFee,
+    platformFee,
+    totalAmount,
     riderPayout: 42,
     distanceKm: 0.4,
     durationText: '10 min',
@@ -143,6 +164,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     event.preventDefault();
     event.stopImmediatePropagation();
+    clearCheckoutError();
     setCheckoutState(checkoutButton, true);
 
     try {
@@ -152,12 +174,7 @@ document.addEventListener('DOMContentLoaded', () => {
       checkoutButton.click();
     } catch (error) {
       console.error('Order creation failed:', error);
-      const toast = document.getElementById('toast');
-      if (toast) {
-        toast.textContent = error?.message || 'Could not place order. Try again.';
-        toast.classList.add('show');
-        window.setTimeout(() => toast.classList.remove('show'), 3000);
-      }
+      showCheckoutError(error?.message || 'Could not place order. Try again.');
     } finally {
       setCheckoutState(checkoutButton, false);
     }
