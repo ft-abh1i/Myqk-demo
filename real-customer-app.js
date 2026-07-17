@@ -55,12 +55,23 @@ function hasSavedLocation(){
   return Number.isFinite(latitude)&&Number.isFinite(longitude)&&Boolean(address);
 }
 
+function openLocationSheet(){
+  $('locationSheet').classList.add('show');
+  $('manualAddressBox').classList.add('hidden');
+  $('detectedLocationBox')?.classList.add('hidden');
+  $('locationStatus').textContent='Tap Give location access to detect your area.';
+}
+
 function requestCustomerLocation(){
   $('locationSheet').classList.add('show');
+  $('allowLocationBtn').disabled=true;
+  $('allowLocationBtn').textContent='Detecting location…';
   $('locationStatus').textContent='Detecting your current location…';
   if(!navigator.geolocation){
     $('manualAddressBox').classList.remove('hidden');
     $('locationStatus').textContent='Location is not supported. Please enter your address manually.';
+    $('allowLocationBtn').disabled=false;
+    $('allowLocationBtn').textContent='Give location access';
     return;
   }
   navigator.geolocation.getCurrentPosition(
@@ -68,12 +79,18 @@ function requestCustomerLocation(){
       localStorage.setItem('qkLatitude',String(position.coords.latitude));
       localStorage.setItem('qkLongitude',String(position.coords.longitude));
       $('manualAddressBox').classList.remove('hidden');
+      $('detectedLocationBox')?.classList.remove('hidden');
+      if($('detectedLocationText'))$('detectedLocationText').textContent='Current location detected';
       $('locationStatus').textContent='Location detected. Add your exact delivery address.';
+      $('allowLocationBtn').disabled=false;
+      $('allowLocationBtn').textContent='Location detected';
     },
     error=>{
       console.warn('Location request failed:',error);
       $('manualAddressBox').classList.remove('hidden');
-      $('locationStatus').textContent='Location permission is required, or enter your address manually.';
+      $('locationStatus').textContent='Location permission was not granted. Enter your address manually or try again.';
+      $('allowLocationBtn').disabled=false;
+      $('allowLocationBtn').textContent='Try location access again';
       toast('Location permission required.');
     },
     {enableHighAccuracy:true,timeout:12000,maximumAge:60000}
@@ -86,12 +103,13 @@ document.addEventListener('DOMContentLoaded',()=>{
   $('searchInput').addEventListener('input',e=>{state.search=e.target.value;$('searchClear').classList.toggle('show',!!state.search);$('categoryNav').style.display=state.search?'none':'';renderMain()});
   $('searchClear').addEventListener('click',()=>{state.search='';$('searchInput').value='';$('searchClear').classList.remove('show');$('categoryNav').style.display='';renderMain()});
   $('cartBtn').addEventListener('click',openCart);$('cartClose').addEventListener('click',()=>$('cartOverlay').classList.remove('open'));
-  $('locationBtn').addEventListener('click',requestCustomerLocation);
+  $('locationBtn').addEventListener('click',openLocationSheet);
   $('locationClose').addEventListener('click',()=>{if(hasSavedLocation())$('locationSheet').classList.remove('show');else toast('Delivery location select karna required hai.');});
   $('allowLocationBtn').addEventListener('click',requestCustomerLocation);
+  $('useCurrentLocationBtn')?.addEventListener('click',requestCustomerLocation);
   $('saveAddressBtn').addEventListener('click',()=>{const address=[$('houseInput').value,$('streetInput').value].filter(Boolean).join(', ');if(!address)return toast('Exact address add karo.');localStorage.setItem('qkLiveLocation',address);$('locationAddress').textContent=address;$('locationSheet').classList.remove('show')});
   const savedAddress=localStorage.getItem('qkLiveLocation')?.trim();
   if(savedAddress)$('locationAddress').textContent=savedAddress;
   renderCategories();renderNav();loadCatalog();
-  if(!hasSavedLocation())setTimeout(requestCustomerLocation,250);
+  if(!hasSavedLocation())setTimeout(openLocationSheet,250);
 });
