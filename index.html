@@ -18,7 +18,7 @@
   <link rel="stylesheet" href="profile-layout.css">
   <link rel="stylesheet" href="support.css">
   <link rel="stylesheet" href="secondary-pages.css">
-  <link rel="stylesheet" href="homepage-theme.css">
+  <link rel="stylesheet" href="homepage-theme.css?v=20260717-circle-fix">
   <link rel="stylesheet" href="catalog-art.css">
   <link rel="stylesheet" href="customer-checkout.css">
   <style>
@@ -64,6 +64,43 @@
       white-space: nowrap;
     }
 
+    /* Keep homepage category artwork inside small Blinkit-style circles. */
+    body:not(.secondary-tab-active) .home-category-icon {
+      width: 46px !important;
+      height: 46px !important;
+      min-width: 46px !important;
+      min-height: 46px !important;
+      max-width: 46px !important;
+      max-height: 46px !important;
+      padding: 0 !important;
+      overflow: hidden !important;
+      border-radius: 999px !important;
+      flex: 0 0 46px !important;
+    }
+
+    body:not(.secondary-tab-active) .home-category-icon img {
+      width: 100% !important;
+      height: 100% !important;
+      max-width: 100% !important;
+      max-height: 100% !important;
+      display: block !important;
+      border-radius: 999px !important;
+      object-fit: cover !important;
+      object-position: center !important;
+    }
+
+    @media (max-width: 390px) {
+      body:not(.secondary-tab-active) .home-category-icon {
+        width: 43px !important;
+        height: 43px !important;
+        min-width: 43px !important;
+        min-height: 43px !important;
+        max-width: 43px !important;
+        max-height: 43px !important;
+        flex-basis: 43px !important;
+      }
+    }
+
     @media (max-width: 360px) {
       .store-card {
         gap: 10px;
@@ -106,7 +143,7 @@
   <section class="sheet" id="locationSheet" role="dialog" aria-modal="true" aria-labelledby="locationTitle">
     <div class="sheet-panel"><div class="sheet-head"><h2 id="locationTitle">Select location</h2><button class="sheet-close" id="locationClose" type="button" aria-label="Close location sheet">×</button></div><button class="location-access-btn" id="allowLocationBtn" type="button">Give location access</button><div class="detected-location hidden" id="detectedLocationBox"><small>DETECTED LOCATION</small><strong id="detectedLocationText"></strong></div><div class="manual-address hidden" id="manualAddressBox"><p>Add exact address</p><input id="houseInput" type="text" placeholder="House / Flat / Floor" autocomplete="address-line1"><input id="streetInput" type="text" placeholder="Street / Area / Landmark" autocomplete="address-line2"><button class="save-address-btn" id="saveAddressBtn" type="button">Save address</button></div><p class="location-status" id="locationStatus">Tap Give location access to detect your area.</p></div>
   </section>
-  <script src="real-customer-app.js" defer></script>
+  <script src="real-customer-app.js?v=20260717-circle-fix" defer></script>
   <script src="customer-checkout.js" defer></script>
   <script src="profile.js" defer></script>
   <script src="profile-layout.js" defer></script>
