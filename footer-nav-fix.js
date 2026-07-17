@@ -12,9 +12,10 @@ function polishFooterNav() {
     const tab = button.dataset.tab;
     const iconSlot = button.firstElementChild;
     const label = button.querySelector('.nav-label');
+    const icon = footerIcons[tab];
 
-    if (iconSlot && footerIcons[tab]) iconSlot.innerHTML = footerIcons[tab];
-    if (tab === 'darkstore' && label) label.textContent = 'Store';
+    if (iconSlot && icon && iconSlot.innerHTML !== icon) iconSlot.innerHTML = icon;
+    if (tab === 'darkstore' && label && label.textContent !== 'Store') label.textContent = 'Store';
   });
 }
 
@@ -23,5 +24,5 @@ document.addEventListener('DOMContentLoaded', () => {
   if (!nav) return;
 
   polishFooterNav();
-  new MutationObserver(polishFooterNav).observe(nav, { childList: true, subtree: true });
+  new MutationObserver(polishFooterNav).observe(nav, { childList: true });
 });
