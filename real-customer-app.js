@@ -1,59 +1,228 @@
 'use strict';
 
 const $ = (id) => document.getElementById(id);
-const categories = [['all','All Stores'],['grocery','Grocery'],['medical-pharmacy','Medical & Pharmacy'],['fruits-vegetables','Fruits & Vegetables'],['restaurant-cafe','Restaurant & Cafe']];
-const navTabs = [['darkstore','Dark Store','⌂'],['orders','Orders','▤'],['track','Track','⌖'],['profile','Profile','○']];
-const demoStores = [
-  {id:'fresh-mart',name:'Fresh Mart',category:'Grocery',desc:'Daily groceries and household essentials',rating:4.7,deliveryTime:'12–18 mins',products:[
-    {id:'milk',name:'Full Cream Milk',unit:'1 litre',price:68,mrp:72,stock:10},
-    {id:'bread',name:'Fresh Sandwich Bread',unit:'400 g',price:45,mrp:50,stock:12},
-    {id:'rice',name:'Premium Basmati Rice',unit:'1 kg',price:149,mrp:175,stock:8}
-  ]},
-  {id:'health-plus',name:'Health Plus Pharmacy',category:'Medical & Pharmacy',desc:'Medicines, wellness and personal care',rating:4.8,deliveryTime:'15–25 mins',products:[
-    {id:'sanitizer',name:'Hand Sanitizer',unit:'200 ml',price:89,mrp:110,stock:15},
-    {id:'mask',name:'Protective Face Masks',unit:'Pack of 5',price:99,mrp:125,stock:20},
-    {id:'bandage',name:'First Aid Bandage',unit:'1 pack',price:55,mrp:65,stock:18}
-  ]},
-  {id:'green-basket',name:'Green Basket',category:'Fruits & Vegetables',desc:'Fresh fruits and vegetables sourced daily',rating:4.6,deliveryTime:'10–20 mins',products:[
-    {id:'banana',name:'Fresh Bananas',unit:'6 pieces',price:48,mrp:55,stock:15},
-    {id:'tomato',name:'Red Tomatoes',unit:'500 g',price:35,mrp:45,stock:16},
-    {id:'apple',name:'Royal Gala Apples',unit:'4 pieces',price:159,mrp:185,stock:9}
-  ]},
-  {id:'qk-cafe',name:'QK Cafe',category:'Restaurant & Cafe',desc:'Snacks, beverages and quick meals',rating:4.5,deliveryTime:'20–30 mins',products:[
-    {id:'coffee',name:'Cold Coffee',unit:'300 ml',price:119,mrp:139,stock:20},
-    {id:'sandwich',name:'Veg Grilled Sandwich',unit:'1 serving',price:129,mrp:149,stock:12},
-    {id:'fries',name:'Classic French Fries',unit:'1 serving',price:99,mrp:119,stock:14}
-  ]}
+const navTabs = [
+  ['darkstore', 'Store', '⌂'],
+  ['orders', 'Orders', '▤'],
+  ['track', 'Track', '⌖'],
+  ['profile', 'Profile', '○']
 ];
-const state = {stores:demoStores,activeStoreId:null,activeCategory:'all',activeTab:'darkstore',search:'',cart:{},quantities:{}};
 
-function slug(value=''){return String(value).toLowerCase().replace(/&/g,'and').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')}
-function money(value){return `₹${Math.round(Number(value)||0)}`}
-function escapeHtml(value=''){return String(value).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
-function toast(message){const el=$('toast');if(!el)return;el.textContent=message;el.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>el.classList.remove('show'),2300)}
-function empty(icon,title,sub){return `<div class="view empty-state"><div class="emoji">${icon}</div><div class="title">${title}</div><div class="sub">${sub}</div></div>`}
-function iconFor(store){return ({grocery:'🛒','medical-and-pharmacy':'✚','fruits-and-vegetables':'🥬','restaurant-and-cafe':'🍽️'})[slug(store.category)]||'QK'}
-function renderCategories(){$('categoryNav').innerHTML=categories.map(([id,label])=>`<button class="chip ${state.activeCategory===id?'active':''}" data-category="${id}" type="button">${label}</button>`).join('')}
-function filteredStores(){return state.activeCategory==='all'?state.stores:state.stores.filter(store=>slug(store.category)===state.activeCategory)}
-function storeCard(store){return `<button class="store-card" data-store="${store.id}" type="button"><span class="store-thumb">${iconFor(store)}</span><span class="store-info"><span class="store-name">${escapeHtml(store.name)}</span><span class="store-desc">${escapeHtml(store.desc)}</span><span class="store-meta"><span class="store-time">${store.deliveryTime}</span><span class="store-rating">★ ${store.rating.toFixed(1)}</span></span></span></button>`}
-function productCard(product,store){const key=`${store.id}:${product.id}`;const quantity=state.quantities[key]||1;return `<article class="product-card" data-product="${product.id}" data-store-id="${store.id}"><div class="product-thumb">▣</div><div class="product-info"><div class="product-name">${escapeHtml(product.name)}</div><div class="product-unit">${escapeHtml(product.unit)}</div><div class="product-price">${money(product.price)}${product.mrp>product.price?`<span class="strike">${money(product.mrp)}</span>`:''}</div></div><div class="product-actions"><div class="stepper"><button class="quantity-minus" type="button">−</button><span class="qty">${quantity}</span><button class="quantity-plus" type="button">+</button></div><div class="action-row"><button class="action-btn add-btn" type="button">Add</button><button class="action-btn buy-btn" type="button">Buy Now</button></div></div></article>`}
-function renderMain(){if(state.activeTab!=='darkstore')return;if(state.search.trim())return renderSearch();if(state.activeStoreId)return renderProducts();const stores=filteredStores();$('appMain').innerHTML=`<div class="view"><h2 class="section-title">Stores near you</h2><div class="store-list">${stores.map(storeCard).join('')}</div></div>`}
-function renderProducts(){const store=state.stores.find(item=>item.id===state.activeStoreId);if(!store){state.activeStoreId=null;return renderMain()}$('appMain').innerHTML=`<div class="view"><div class="store-banner"><button class="round-back" id="storeBack" type="button">‹</button><div class="banner-icon">${iconFor(store)}</div><div><div class="banner-name">${escapeHtml(store.name)}</div><div class="banner-meta">${store.deliveryTime} · ★ ${store.rating.toFixed(1)}</div></div></div><div class="product-list">${store.products.map(product=>productCard(product,store)).join('')}</div></div>`}
-function renderSearch(){const query=state.search.trim().toLowerCase();const stores=state.stores.filter(store=>`${store.name} ${store.desc} ${store.category}`.toLowerCase().includes(query));const products=[];state.stores.forEach(store=>store.products.forEach(product=>{if(`${product.name} ${product.unit}`.toLowerCase().includes(query))products.push({store,product})}));$('appMain').innerHTML=stores.length||products.length?`<div class="view">${stores.length?`<h2 class="section-title">Stores</h2><div class="store-list">${stores.map(storeCard).join('')}</div>`:''}${products.length?`<h2 class="section-title" style="margin-top:20px">Products</h2><div class="product-list">${products.map(({store,product})=>productCard(product,store)).join('')}</div>`:''}</div>`:empty('⌕','No results','Try another product or store name.')}
-function cartKey(storeId,productId){return `${storeId}:${productId}`}
-function addToCart(store,product,quantity){const storeIds=new Set(Object.values(state.cart).map(item=>item.store.id));if(storeIds.size&&!storeIds.has(store.id)){toast('Ek order me ek hi store ke products add kar sakte ho.');return false}const key=cartKey(store.id,product.id);state.cart[key]=state.cart[key]?{...state.cart[key],quantity:Math.min(product.stock,state.cart[key].quantity+quantity)}:{store,product,quantity:Math.min(product.stock,quantity)};updateBadge();return true}
-function updateBadge(){const count=Object.values(state.cart).reduce((sum,item)=>sum+item.quantity,0);$('cartBadge').textContent=count;$('cartBadge').classList.toggle('show',count>0)}
-function renderCart(){const items=Object.values(state.cart);$('cartFooter').style.display=items.length?'':'none';if(!items.length){$('cartBody').innerHTML=empty('🛒','Your cart is empty','Add products from a demo store.');return}$('cartBody').innerHTML=`<div class="product-list">${items.map(({store,product,quantity})=>`<article class="product-card" data-cart-product="${cartKey(store.id,product.id)}"><div class="product-thumb">▣</div><div class="product-info"><div class="product-name">${escapeHtml(product.name)}</div><div class="product-unit">${escapeHtml(product.unit)}</div><span class="product-store-tag">${escapeHtml(store.name)}</span><div class="product-price">${money(product.price*quantity)}</div></div><div class="product-actions"><div class="stepper"><button class="cart-minus" type="button">−</button><span class="qty">${quantity}</span><button class="cart-plus" type="button">+</button></div></div></article>`).join('')}</div>`}
-function openCart(){renderCart();$('cartOverlay').classList.add('open')}
-function renderNav(){$('bottomNav').innerHTML=navTabs.map(([id,label,icon])=>`<button class="nav-item ${state.activeTab===id?'active':''}" data-tab="${id}" type="button"><span>${icon}</span><span class="nav-label">${label}</span><span class="nav-dot"></span></button>`).join('')}
-function switchTab(tab){state.activeTab=tab;renderNav();$('searchWrap').style.display=tab==='darkstore'?'':'none';$('categoryNav').style.display=tab==='darkstore'&&!state.search?'':'none';if(tab==='darkstore')renderMain();else if(tab==='profile')$('appMain').innerHTML=empty('○','Customer profile','Profile UI will be upgraded before backend integration.');else $('appMain').innerHTML=empty(tab==='orders'?'▤':'⌖',tab==='orders'?'No demo orders yet':'Nothing to track','Backend is temporarily disconnected during the UI phase.')}
-function hasSavedLocation(){return Boolean(localStorage.getItem('qkLiveLocation')?.trim())}
-function openLocationSheet(){$('locationSheet').classList.add('show');$('allowLocationBtn').classList.remove('hidden');$('allowLocationBtn').disabled=false;$('allowLocationBtn').textContent='Give location access';$('manualAddressBox').classList.add('hidden');$('detectedLocationBox').classList.add('hidden');$('locationStatus').textContent='Tap Give location access to detect your area.'}
-async function reverseGeocode(latitude,longitude){try{const response=await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(latitude)}&lon=${encodeURIComponent(longitude)}&zoom=18&addressdetails=1`);if(!response.ok)throw new Error('Address lookup failed');const data=await response.json();const address=data.address||{};return [address.road||address.neighbourhood||address.suburb,address.city||address.town||address.village||address.county,address.state,address.postcode].filter(Boolean).join(', ')||data.display_name}catch{return `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`}}
-function requestCustomerLocation(){$('allowLocationBtn').disabled=true;$('allowLocationBtn').textContent='Detecting location…';$('locationStatus').textContent='Detecting your current location…';if(!navigator.geolocation){$('manualAddressBox').classList.remove('hidden');$('locationStatus').textContent='Location is unavailable. Enter your address manually.';return}navigator.geolocation.getCurrentPosition(async position=>{const {latitude,longitude}=position.coords;$('allowLocationBtn').classList.add('hidden');$('detectedLocationBox').classList.remove('hidden');$('detectedLocationText').textContent='Finding address…';$('manualAddressBox').classList.remove('hidden');const detected=await reverseGeocode(latitude,longitude);$('detectedLocationText').textContent=detected;localStorage.setItem('qkDetectedLocation',detected);$('locationStatus').textContent='Location detected. Add your exact delivery address.'},()=>{$('manualAddressBox').classList.remove('hidden');$('allowLocationBtn').disabled=false;$('allowLocationBtn').textContent='Try location access again';$('locationStatus').textContent='Location permission was not granted. Enter your address manually.'},{enableHighAccuracy:true,timeout:12000,maximumAge:60000})}
+const state = {
+  stores: [],
+  activeStoreId: null,
+  activeTab: 'darkstore',
+  search: '',
+  cart: {},
+  quantities: {}
+};
 
-function previewOrder(){const name=$('customerNameInput').value.trim();const phone=$('customerPhoneInput').value.replace(/\D/g,'');if(name.length<2)return toast('Customer name add karo.');if(!/^[6-9]\d{9}$/.test(phone))return toast('Valid mobile number add karo.');if(!Object.keys(state.cart).length)return toast('Cart empty hai.');toast('UI preview complete — backend disconnected.');$('cartOverlay').classList.remove('open')}
+function money(value) {
+  return `₹${Math.round(Number(value) || 0)}`;
+}
 
-document.addEventListener('click',event=>{const category=event.target.closest('[data-category]');if(category){state.activeCategory=category.dataset.category;state.activeStoreId=null;renderCategories();renderMain();return}const storeButton=event.target.closest('[data-store]');if(storeButton){state.activeStoreId=storeButton.dataset.store;state.search='';$('searchInput').value='';renderMain();return}if(event.target.closest('#storeBack')){state.activeStoreId=null;renderMain();return}const productCardElement=event.target.closest('[data-product][data-store-id]');if(productCardElement){const store=state.stores.find(item=>item.id===productCardElement.dataset.storeId);const product=store?.products.find(item=>item.id===productCardElement.dataset.product);if(!product)return;const key=cartKey(store.id,product.id);if(event.target.closest('.quantity-minus')){state.quantities[key]=Math.max(1,(state.quantities[key]||1)-1);productCardElement.querySelector('.qty').textContent=state.quantities[key]}if(event.target.closest('.quantity-plus')){state.quantities[key]=Math.min(product.stock,(state.quantities[key]||1)+1);productCardElement.querySelector('.qty').textContent=state.quantities[key]}if(event.target.closest('.add-btn,.buy-btn')){const quantity=state.quantities[key]||1;if(addToCart(store,product,quantity)){state.quantities[key]=1;productCardElement.querySelector('.qty').textContent='1';toast(`${quantity} × ${product.name} added`);if(event.target.closest('.buy-btn'))openCart()}}return}const cartCard=event.target.closest('[data-cart-product]');if(cartCard){const key=cartCard.dataset.cartProduct;if(event.target.closest('.cart-minus')){state.cart[key].quantity--;if(state.cart[key].quantity<=0)delete state.cart[key];updateBadge();renderCart()}if(event.target.closest('.cart-plus')){state.cart[key].quantity=Math.min(state.cart[key].product.stock,state.cart[key].quantity+1);updateBadge();renderCart()}return}const tab=event.target.closest('[data-tab]');if(tab)switchTab(tab.dataset.tab)});
+function escapeHtml(value = '') {
+  return String(value).replace(/[&<>'"]/g, (character) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    "'": '&#39;',
+    '"': '&quot;'
+  })[character]);
+}
 
-document.addEventListener('DOMContentLoaded',()=>{$('searchInput').addEventListener('input',event=>{state.search=event.target.value;$('searchClear').classList.toggle('show',Boolean(state.search));$('categoryNav').style.display=state.search?'none':'';renderMain()});$('searchClear').addEventListener('click',()=>{state.search='';$('searchInput').value='';$('searchClear').classList.remove('show');$('categoryNav').style.display='';renderMain()});$('cartBtn').addEventListener('click',openCart);$('cartClose').addEventListener('click',()=>$('cartOverlay').classList.remove('open'));$('locationBtn').addEventListener('click',openLocationSheet);$('locationClose').addEventListener('click',()=>{if(hasSavedLocation())$('locationSheet').classList.remove('show');else toast('Delivery location select karna required hai.')});$('allowLocationBtn').addEventListener('click',requestCustomerLocation);$('saveAddressBtn').addEventListener('click',()=>{const exact=[$('houseInput').value,$('streetInput').value].filter(Boolean).join(', ');if(!exact)return toast('Exact address add karo.');const detected=localStorage.getItem('qkDetectedLocation')?.trim();const full=[exact,detected].filter(Boolean).join(', ');localStorage.setItem('qkLiveLocation',full);$('locationAddress').textContent=full;$('locationSheet').classList.remove('show')});$('checkoutBtn').addEventListener('click',previewOrder);const saved=localStorage.getItem('qkLiveLocation')?.trim();if(saved)$('locationAddress').textContent=saved;renderCategories();renderNav();renderMain();updateBadge();if(!hasSavedLocation())setTimeout(openLocationSheet,250)});
+function toast(message) {
+  const element = $('toast');
+  if (!element) return;
+  element.textContent = message;
+  element.classList.add('show');
+  clearTimeout(toast.timer);
+  toast.timer = setTimeout(() => element.classList.remove('show'), 2300);
+}
+
+function empty(icon, title, subtitle) {
+  return `<div class="view empty-state"><div class="emoji">${icon}</div><div class="title">${title}</div><div class="sub">${subtitle}</div></div>`;
+}
+
+function renderMain() {
+  if (state.activeTab !== 'darkstore') return;
+  $('appMain').innerHTML = empty('⌂', 'No stores added yet', 'Store design and real catalog will be added next.');
+}
+
+function renderSearch() {
+  $('appMain').innerHTML = empty('⌕', 'No stores or products', 'The demo catalog has been removed.');
+}
+
+function updateBadge() {
+  const badge = $('cartBadge');
+  if (!badge) return;
+  const count = Object.values(state.cart).reduce((sum, item) => sum + item.quantity, 0);
+  badge.textContent = count;
+  badge.classList.toggle('show', count > 0);
+}
+
+function renderCart() {
+  const items = Object.values(state.cart);
+  $('cartFooter').style.display = items.length ? '' : 'none';
+
+  if (!items.length) {
+    $('cartBody').innerHTML = empty('🛒', 'Your cart is empty', 'Products will appear here after stores are added.');
+    return;
+  }
+
+  $('cartBody').innerHTML = `<div class="product-list">${items.map(({ store, product, quantity }) => `
+    <article class="product-card">
+      <div class="product-info">
+        <div class="product-name">${escapeHtml(product.name)}</div>
+        <div class="product-unit">${escapeHtml(product.unit || '')}</div>
+        <span class="product-store-tag">${escapeHtml(store.name)}</span>
+        <div class="product-price">${money(product.price * quantity)}</div>
+      </div>
+    </article>`).join('')}</div>`;
+}
+
+function openCart() {
+  renderCart();
+  $('cartOverlay').classList.add('open');
+}
+
+function renderNav() {
+  $('bottomNav').innerHTML = navTabs.map(([id, label, icon]) => `
+    <button class="nav-item ${state.activeTab === id ? 'active' : ''}" data-tab="${id}" type="button">
+      <span>${icon}</span>
+      <span class="nav-label">${label}</span>
+      <span class="nav-dot"></span>
+    </button>`).join('');
+}
+
+function switchTab(tab) {
+  state.activeTab = tab;
+  renderNav();
+  $('searchWrap').style.display = tab === 'darkstore' ? '' : 'none';
+
+  if (tab === 'darkstore') {
+    renderMain();
+  } else if (tab === 'profile') {
+    $('appMain').innerHTML = empty('○', 'Customer profile', 'Profile UI will be upgraded before backend integration.');
+  } else {
+    $('appMain').innerHTML = empty(
+      tab === 'orders' ? '▤' : '⌖',
+      tab === 'orders' ? 'No orders yet' : 'Nothing to track',
+      'No active data is available.'
+    );
+  }
+}
+
+function hasSavedLocation() {
+  return Boolean(localStorage.getItem('qkLiveLocation')?.trim());
+}
+
+function openLocationSheet() {
+  $('locationSheet').classList.add('show');
+  $('allowLocationBtn').classList.remove('hidden');
+  $('allowLocationBtn').disabled = false;
+  $('allowLocationBtn').textContent = 'Give location access';
+  $('manualAddressBox').classList.add('hidden');
+  $('detectedLocationBox').classList.add('hidden');
+  $('locationStatus').textContent = 'Tap Give location access to detect your area.';
+}
+
+async function reverseGeocode(latitude, longitude) {
+  try {
+    const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(latitude)}&lon=${encodeURIComponent(longitude)}&zoom=18&addressdetails=1`);
+    if (!response.ok) throw new Error('Address lookup failed');
+    const data = await response.json();
+    const address = data.address || {};
+    return [
+      address.road || address.neighbourhood || address.suburb,
+      address.city || address.town || address.village || address.county,
+      address.state,
+      address.postcode
+    ].filter(Boolean).join(', ') || data.display_name;
+  } catch {
+    return `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+  }
+}
+
+function requestCustomerLocation() {
+  $('allowLocationBtn').disabled = true;
+  $('allowLocationBtn').textContent = 'Detecting location…';
+  $('locationStatus').textContent = 'Detecting your current location…';
+
+  if (!navigator.geolocation) {
+    $('manualAddressBox').classList.remove('hidden');
+    $('locationStatus').textContent = 'Location is unavailable. Enter your address manually.';
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(async (position) => {
+    const { latitude, longitude } = position.coords;
+    $('allowLocationBtn').classList.add('hidden');
+    $('detectedLocationBox').classList.remove('hidden');
+    $('detectedLocationText').textContent = 'Finding address…';
+    $('manualAddressBox').classList.remove('hidden');
+    const detected = await reverseGeocode(latitude, longitude);
+    $('detectedLocationText').textContent = detected;
+    localStorage.setItem('qkDetectedLocation', detected);
+    $('locationStatus').textContent = 'Location detected. Add your exact delivery address.';
+  }, () => {
+    $('manualAddressBox').classList.remove('hidden');
+    $('allowLocationBtn').disabled = false;
+    $('allowLocationBtn').textContent = 'Try location access again';
+    $('locationStatus').textContent = 'Location permission was not granted. Enter your address manually.';
+  }, {
+    enableHighAccuracy: true,
+    timeout: 12000,
+    maximumAge: 60000
+  });
+}
+
+function previewOrder() {
+  toast('Cart empty hai.');
+}
+
+document.addEventListener('click', (event) => {
+  const tab = event.target.closest('[data-tab]');
+  if (tab) switchTab(tab.dataset.tab);
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+  $('searchInput').addEventListener('input', (event) => {
+    state.search = event.target.value;
+    $('searchClear').classList.toggle('show', Boolean(state.search));
+    state.search.trim() ? renderSearch() : renderMain();
+  });
+
+  $('searchClear').addEventListener('click', () => {
+    state.search = '';
+    $('searchInput').value = '';
+    $('searchClear').classList.remove('show');
+    renderMain();
+  });
+
+  $('cartBtn').addEventListener('click', openCart);
+  $('cartClose').addEventListener('click', () => $('cartOverlay').classList.remove('open'));
+  $('locationBtn').addEventListener('click', openLocationSheet);
+  $('locationClose').addEventListener('click', () => {
+    if (hasSavedLocation()) $('locationSheet').classList.remove('show');
+    else toast('Delivery location select karna required hai.');
+  });
+  $('allowLocationBtn').addEventListener('click', requestCustomerLocation);
+  $('saveAddressBtn').addEventListener('click', () => {
+    const exact = [$('houseInput').value, $('streetInput').value].filter(Boolean).join(', ');
+    if (!exact) return toast('Exact address add karo.');
+    const detected = localStorage.getItem('qkDetectedLocation')?.trim();
+    const full = [exact, detected].filter(Boolean).join(', ');
+    localStorage.setItem('qkLiveLocation', full);
+    $('locationAddress').textContent = full;
+    $('locationSheet').classList.remove('show');
+  });
+  $('checkoutBtn').addEventListener('click', previewOrder);
+
+  const savedLocation = localStorage.getItem('qkLiveLocation')?.trim();
+  if (savedLocation) $('locationAddress').textContent = savedLocation;
+
+  renderNav();
+  renderMain();
+  updateBadge();
+});
