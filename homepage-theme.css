@@ -1,7 +1,8 @@
 /* Homepage-only header treatment */
 :root {
-  --home-header-bg: #e8f5ec;
-  --home-header-line: #cfe4d7;
+  --home-header-bg: #071a3b;
+  --home-header-line: #102b55;
+  --home-header-gold: #f1c84b;
 }
 
 /* Location/cart row and search row form one continuous header block. */
@@ -24,15 +25,15 @@ body:not(.secondary-tab-active) #searchWrap {
 
 body:not(.secondary-tab-active) #searchWrap .search-bar {
   height: 46px;
-  border-color: rgba(31, 122, 77, .15);
-  background: rgba(255, 255, 255, .94);
-  box-shadow: 0 5px 16px rgba(31, 122, 77, .08);
+  border-color: rgba(255, 255, 255, .16);
+  background: rgba(255, 255, 255, .96);
+  box-shadow: 0 5px 16px rgba(0, 0, 0, .16);
 }
 
 body:not(.secondary-tab-active) #searchWrap .search-bar:focus-within {
-  border-color: rgba(31, 122, 77, .55);
+  border-color: rgba(241, 200, 75, .7);
   background: #ffffff;
-  box-shadow: 0 6px 18px rgba(31, 122, 77, .12);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .2);
 }
 
 /* Categories begin as a separate section after the divider. */
@@ -42,12 +43,26 @@ body:not(.secondary-tab-active) #categoryNav {
   background: #ffffff;
 }
 
+body:not(.secondary-tab-active) #appHeader .location-label {
+  color: rgba(255, 255, 255, .68);
+}
+
+body:not(.secondary-tab-active) #appHeader .location-address {
+  color: #ffffff;
+}
+
 body:not(.secondary-tab-active) #appHeader .location-pin {
-  background: rgba(255, 255, 255, .9);
-  box-shadow: 0 3px 10px rgba(31, 122, 77, .09);
+  color: var(--home-header-gold);
+  background: rgba(255, 255, 255, .11);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, .14);
+}
+
+body:not(.secondary-tab-active) #appHeader .location-btn:active {
+  background: rgba(255, 255, 255, .08);
 }
 
 body:not(.secondary-tab-active) #appHeader .cart-btn {
-  background: var(--primary);
-  box-shadow: 0 6px 16px rgba(31, 122, 77, .22);
+  color: var(--home-header-bg);
+  background: var(--home-header-gold);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, .2);
 }
