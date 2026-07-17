@@ -118,6 +118,10 @@
         <input id="houseInput" type="text" placeholder="House / Flat / Floor" autocomplete="address-line1">
         <input id="streetInput" type="text" placeholder="Street / Area / Landmark" autocomplete="address-line2">
         <button class="save-address-btn" id="saveAddressBtn" type="button">Save address</button>
+        <button class="use-current-location-btn" id="useCurrentLocationBtn" type="button" onclick="document.getElementById('allowLocationBtn').click()" aria-label="Detect and use current location">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="8"/></svg>
+          <span>Use current location</span>
+        </button>
       </div>
 
       <p class="location-status" id="locationStatus">Tap Give location access to detect your area.</p>
