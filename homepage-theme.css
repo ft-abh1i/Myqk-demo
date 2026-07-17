@@ -7,81 +7,82 @@
 }
 
 body:not(.secondary-tab-active) #appHeader {
-  padding: 18px 20px 12px;
+  padding: 10px 16px 7px;
   background: var(--home-header-bg);
   border: 0;
   box-shadow: none;
 }
 
 body:not(.secondary-tab-active) #appHeader .location-btn {
-  max-width: calc(100% - 72px);
-  gap: 12px;
+  max-width: calc(100% - 62px);
+  gap: 9px;
+  padding-block: 3px;
 }
 
 body:not(.secondary-tab-active) #appHeader .location-pin {
-  width: 48px;
-  height: 48px;
+  width: 40px;
+  height: 40px;
   color: var(--home-header-gold);
   background: rgba(255,255,255,.11);
 }
 
-body:not(.secondary-tab-active) #appHeader .location-pin svg { width: 24px; height: 24px; }
-body:not(.secondary-tab-active) #appHeader .location-label { color: rgba(255,255,255,.62); font-size: 11px; letter-spacing: .02em; }
-body:not(.secondary-tab-active) #appHeader .location-address { margin-top: 4px; color: #fff; font-size: 16px; }
-body:not(.secondary-tab-active) #appHeader .cart-btn { width: 50px; height: 50px; color: #071a3b; background: var(--home-header-gold); box-shadow: 0 8px 20px rgba(0,0,0,.2); }
-body:not(.secondary-tab-active) #appHeader .cart-btn > svg { width: 24px; height: 24px; }
+body:not(.secondary-tab-active) #appHeader .location-pin svg { width: 20px; height: 20px; }
+body:not(.secondary-tab-active) #appHeader .location-label { color: rgba(255,255,255,.62); font-size: 10px; letter-spacing: .02em; }
+body:not(.secondary-tab-active) #appHeader .location-address { margin-top: 2px; color: #fff; font-size: 14.5px; }
+body:not(.secondary-tab-active) #appHeader .cart-btn { width: 43px; height: 43px; color: #071a3b; background: var(--home-header-gold); box-shadow: 0 5px 14px rgba(0,0,0,.18); }
+body:not(.secondary-tab-active) #appHeader .cart-btn > svg { width: 21px; height: 21px; }
 
 body:not(.secondary-tab-active) #searchWrap {
-  padding: 8px 20px 18px;
+  padding: 4px 16px 11px;
   background: var(--home-header-bg);
   border-bottom: 1px solid var(--home-header-line);
 }
 
 body:not(.secondary-tab-active) #searchWrap .search-bar {
-  height: 56px;
-  padding: 0 17px;
-  gap: 12px;
+  height: 46px;
+  padding: 0 14px;
+  gap: 10px;
   border: 0;
-  border-radius: 21px;
+  border-radius: 17px;
   background: #f5f6f7;
   box-shadow: none;
 }
-body:not(.secondary-tab-active) #searchWrap .search-bar > svg { width: 22px; height: 22px; color: #68766f; }
-body:not(.secondary-tab-active) #searchWrap .search-bar input { font-size: 17px; color: #39413d; }
+body:not(.secondary-tab-active) #searchWrap .search-bar > svg { width: 19px; height: 19px; color: #68766f; }
+body:not(.secondary-tab-active) #searchWrap .search-bar input { font-size: 15px; color: #39413d; }
 
 body:not(.secondary-tab-active) #appMain { padding: 0 0 108px; background: #fff; }
 .home-view { min-height: 100%; }
 
 .home-category-strip {
-  padding: 12px 14px 15px;
+  padding: 9px 12px 11px;
   display: grid;
-  grid-template-columns: repeat(6, minmax(68px, 1fr));
-  gap: 11px;
+  grid-template-columns: repeat(6, minmax(62px, 1fr));
+  gap: 8px;
   overflow-x: auto;
   background: #061a3b;
   scrollbar-width: none;
 }
 .home-category-strip::-webkit-scrollbar { display: none; }
 .home-category {
-  min-width: 68px;
+  min-width: 62px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   color: #fff;
-  font-size: 10.5px;
+  font-size: 9.5px;
   font-weight: 700;
   white-space: nowrap;
 }
 .home-category-icon {
-  width: 48px;
-  height: 48px;
+  width: 42px;
+  height: 42px;
   display: grid;
   place-items: center;
   border-radius: 50%;
   background: #e9f2c9;
   color: #207c46;
-  font-size: 23px;
+  font-size: 20px;
   box-shadow: inset 0 0 0 1px rgba(255,255,255,.35);
 }
 .home-category.active { color: var(--home-header-gold); }
@@ -155,8 +156,10 @@ body:not(.secondary-tab-active) .nav-item.active { color: var(--home-green); }
 .product-thumb img { width: 100%; height: 100%; object-fit: contain; }
 
 @media (max-width: 390px) {
-  .home-category-strip { gap: 7px; padding-inline: 10px; }
-  .home-category { min-width: 62px; font-size: 9.5px; }
-  .home-category-icon { width: 44px; height: 44px; }
+  body:not(.secondary-tab-active) #appHeader { padding-inline: 14px; }
+  body:not(.secondary-tab-active) #searchWrap { padding-inline: 14px; }
+  .home-category-strip { gap: 6px; padding-inline: 9px; }
+  .home-category { min-width: 58px; font-size: 9px; }
+  .home-category-icon { width: 40px; height: 40px; }
   .featured-store-row, .best-product-row { grid-auto-columns: 132px; }
 }
