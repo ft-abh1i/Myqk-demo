@@ -10,7 +10,7 @@ const navTabs = [
 ];
 
 const categories = [
-  ['all', 'All Stores', '🛒', ''],
+  ['all', 'All Stores', '', 'https://i.ibb.co/mC2d70hB/file-000000000abc720bbbd9802bd99a170d.png'],
   ['pharmacy', 'Pharmacy', '', 'https://i.ibb.co/j9XGMzjp/file-00000000725071fa9b42b654231acd01.png'],
   ['groceries', 'Groceries', '', 'https://i.ibb.co/qFjzKbkd/file-0000000071c871faaff8e4c5b3e46966.png'],
   ['snacks', 'Snacks', '', 'https://i.ibb.co/XZn7QhH1/file-00000000d97c71faa65bee1bb8f661f3.png']
