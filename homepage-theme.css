@@ -96,7 +96,7 @@ body:not(.secondary-tab-active) #appMain { padding: 0 0 84px; background: #fff; 
   border-radius: 999px !important;
   object-fit: cover !important;
   object-position: center !important;
-  transform: scale(2.15);
+  transform: scale(1.82);
   transform-origin: center;
 }
 .home-category.active { color: var(--home-header-gold); }
