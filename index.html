@@ -21,6 +21,64 @@
   <link rel="stylesheet" href="homepage-theme.css">
   <link rel="stylesheet" href="catalog-art.css">
   <link rel="stylesheet" href="customer-checkout.css">
+  <style>
+    /* Keep store-card content inside the mobile viewport. */
+    html,
+    body,
+    #app {
+      max-width: 100%;
+      overflow-x: hidden;
+    }
+
+    .app-main,
+    .view,
+    .store-list,
+    .store-card,
+    .store-info {
+      min-width: 0;
+      max-width: 100%;
+    }
+
+    .store-card {
+      overflow: hidden;
+    }
+
+    .store-name,
+    .store-desc {
+      display: block;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .store-meta {
+      max-width: 100%;
+      flex-wrap: wrap;
+      gap: 6px 8px;
+    }
+
+    .store-time,
+    .store-rating {
+      min-width: 0;
+      max-width: 100%;
+      white-space: nowrap;
+    }
+
+    @media (max-width: 360px) {
+      .store-card {
+        gap: 10px;
+        padding: 11px;
+      }
+
+      .store-thumb {
+        width: 64px;
+        height: 64px;
+        border-radius: 15px;
+        font-size: 29px;
+      }
+    }
+  </style>
 </head>
 <body oncontextmenu="return false">
   <div id="app">
