@@ -70,6 +70,21 @@ function showCheckoutError(message) {
   }
 }
 
+function showOrderPlaced() {
+  const toast = document.getElementById('toast');
+  if (!toast) return;
+  toast.textContent = 'Order placed successfully!';
+  toast.classList.add('show');
+  window.setTimeout(() => toast.classList.remove('show'), 3000);
+}
+
+function openTrackPage() {
+  document.getElementById('cartOverlay')?.classList.remove('open');
+  document.body.classList.remove('locked');
+  const trackButton = document.querySelector('[data-tab="track"]');
+  if (trackButton) trackButton.click();
+}
+
 function clearCheckoutError() {
   const errorBox = document.getElementById('checkoutError');
   if (errorBox) {
@@ -172,6 +187,8 @@ document.addEventListener('DOMContentLoaded', () => {
       localStorage.setItem('qkLatestOrderId', order.id);
       checkoutButton.dataset.firebaseCommitted = 'true';
       checkoutButton.click();
+      showOrderPlaced();
+      window.setTimeout(openTrackPage, 250);
     } catch (error) {
       console.error('Order creation failed:', error);
       showCheckoutError(error?.message || 'Could not place order. Try again.');
