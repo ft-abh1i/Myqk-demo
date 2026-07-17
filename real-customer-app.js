@@ -13,9 +13,7 @@ const categories = [
   ['all', 'All Stores', '🛒', ''],
   ['pharmacy', 'Pharmacy', '', 'https://i.ibb.co/j9XGMzjp/file-00000000725071fa9b42b654231acd01.png'],
   ['groceries', 'Groceries', '', 'https://i.ibb.co/qFjzKbkd/file-0000000071c871faaff8e4c5b3e46966.png'],
-  ['fruits', 'Fruits & Veg', '🌿', ''],
-  ['snacks', 'Snacks', '', 'https://i.ibb.co/XZn7QhH1/file-00000000d97c71faa65bee1bb8f661f3.png'],
-  ['more', 'More', '▦', '']
+  ['snacks', 'Snacks', '', 'https://i.ibb.co/XZn7QhH1/file-00000000d97c71faa65bee1bb8f661f3.png']
 ];
 
 const stores = [
@@ -66,7 +64,7 @@ function categoryMarkup() {
 
 function renderHome() {
   const query = state.search.trim().toLowerCase();
-  const visibleStores = stores.filter(store => (state.activeCategory === 'all' || state.activeCategory === 'more' || store.category === state.activeCategory) && (!query || `${store.name} ${store.category}`.toLowerCase().includes(query)));
+  const visibleStores = stores.filter(store => (state.activeCategory === 'all' || store.category === state.activeCategory) && (!query || `${store.name} ${store.category}`.toLowerCase().includes(query)));
   const visibleProducts = products.filter(product => !query || `${product.name} ${product.unit}`.toLowerCase().includes(query));
 
   $('appMain').innerHTML = `<div class="view home-view">
