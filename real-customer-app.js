@@ -26,10 +26,12 @@ const stores = [
 ];
 
 const products = [
-  { id: 'milk', name: 'Amul Taaza', unit: 'Milk 1L', price: 62, image: 'https://m.media-amazon.com/images/I/51N9kMhH5KL._AC_UF894,1000_QL80_.jpg' },
-  { id: 'atta', name: 'Aashirvaad', unit: 'Atta 1kg', price: 49, image: 'https://m.media-amazon.com/images/I/71rjV9XJqHL._AC_UF894,1000_QL80_.jpg' },
-  { id: 'oil', name: 'Fortune', unit: 'Sunflower Oil 1L', price: 135, image: 'https://m.media-amazon.com/images/I/61Rz5N7JpGL._AC_UF894,1000_QL80_.jpg' },
-  { id: 'surf', name: 'Surf Excel', unit: 'Matic 1kg', price: 110, image: 'https://m.media-amazon.com/images/I/71cS8f0QWzL._AC_UF894,1000_QL80_.jpg' }
+  { id: 'banana', name: 'Fresh Bananas', unit: '6 pcs', price: 48, image: 'https://images.unsplash.com/photo-1603833665858-e61d17a86224?auto=format&fit=crop&w=500&q=85' },
+  { id: 'bread', name: 'Whole Wheat Bread', unit: '400 g', price: 45, image: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=500&q=85' },
+  { id: 'eggs', name: 'Farm Fresh Eggs', unit: '6 pcs', price: 72, image: 'https://images.unsplash.com/photo-1582722872445-44dc5f7e3c8f?auto=format&fit=crop&w=500&q=85' },
+  { id: 'orange', name: 'Fresh Oranges', unit: '1 kg', price: 95, image: 'https://images.unsplash.com/photo-1547514701-42782101795e?auto=format&fit=crop&w=500&q=85' },
+  { id: 'tomato', name: 'Fresh Tomatoes', unit: '500 g', price: 38, image: 'https://images.unsplash.com/photo-1561136594-7f68413baa99?auto=format&fit=crop&w=500&q=85' },
+  { id: 'juice', name: 'Orange Juice', unit: '1 L', price: 110, image: 'https://images.unsplash.com/photo-1600271886742-f049cd451bba?auto=format&fit=crop&w=500&q=85' }
 ];
 
 const state = {
