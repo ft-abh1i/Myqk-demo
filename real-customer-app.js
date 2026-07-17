@@ -10,10 +10,12 @@ const navTabs = [
 ];
 
 const categories = [
-  ['all', 'All Stores', '', 'https://i.ibb.co/ZkNcpS1/file-00000000d87071fba4d467d45f59a773.png'],
-  ['pharmacy', 'Pharmacy', '', 'https://i.ibb.co/j9XGMzjp/file-00000000725071fa9b42b654231acd01.png'],
-  ['groceries', 'Groceries', '', 'https://i.ibb.co/qFjzKbkd/file-0000000071c871faaff8e4c5b3e46966.png'],
-  ['snacks', 'Snacks', '', 'https://i.ibb.co/XZn7QhH1/file-00000000d97c71faa65bee1bb8f661f3.png']
+  ['all', 'All Stores', '', 'https://i.ibb.co/ksPGNTh1/file-00000000e5e47207b913f9b20e24648a.png'],
+  ['groceries', 'Grocery', '', 'https://i.ibb.co/DPM7XHp1/file-000000002e407207b364dac899ed1521.png'],
+  ['pharmacy', 'Pharmacy', '', 'https://i.ibb.co/LXzpZ7wM/file-00000000142071fa904cffc2ac9358b3.png'],
+  ['beauty', 'Beauty', '', 'https://i.ibb.co/Q7kN67Gz/file-000000001c7071fa83e0b592537c937c.png'],
+  ['kids', 'Kids', '', 'https://i.ibb.co/WWGpBHDk/file-00000000d90471fa96565410954cb120.png'],
+  ['electronics', 'Electronics', '', 'https://i.ibb.co/9Hg19qZp/file-0000000049ec71fab3f2e2e7de8d5ac0.png']
 ];
 
 const stores = [
