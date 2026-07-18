@@ -140,12 +140,17 @@ async function askBuyQkAi(text) {
   if (sendButton) sendButton.disabled = true;
 
   try {
+    const previousMessages = aiMessages
+      .filter((item) => item.content !== 'Thinking…')
+      .slice(0, -1)
+      .slice(-8);
+
     const response = await fetch('/api/buyqk-ai', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         message,
-        history: aiMessages.filter((item) => item.content !== 'Thinking…').slice(-8),
+        history: previousMessages,
         context: buildAiContext()
       })
     });
@@ -158,11 +163,12 @@ async function askBuyQkAi(text) {
       content: data.reply || 'I could not generate a response. Try again.'
     };
   } catch (error) {
+    const messageText = error?.message || 'AI is not connected right now. Please try again after setup.';
     aiMessages[aiMessages.length - 1] = {
       role: 'assistant',
-      content: error?.message?.includes('GEMINI_API_KEY') || error?.message?.includes('GOOGLE_API_KEY')
+      content: messageText.includes('GEMINI_API_KEY') || messageText.includes('GOOGLE_API_KEY')
         ? 'AI backend key is not configured yet. Add GEMINI_API_KEY in your deployment environment.'
-        : 'AI is not connected right now. Please try again after setup.'
+        : `AI setup error: ${messageText}`
     };
   } finally {
     if (sendButton) sendButton.disabled = false;
