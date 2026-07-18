@@ -15,12 +15,13 @@ const aiQuickPrompts = [
   'Find milk, bread, and eggs',
   'Suggest snacks on a budget'
 ];
+let aiRequestInFlight = false;
 
 function ensureAiStylesheet() {
   if (document.querySelector('link[href^="ai-assistant.css"]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = 'ai-assistant.css?v=20260718-ai-english-1';
+  link.href = 'ai-assistant.css?v=20260718-ai-fixed-results-1';
   document.head.appendChild(link);
 }
 
@@ -46,50 +47,102 @@ function getCartContext() {
 
 function getOrderContext() {
   if (typeof state === 'undefined' || !Array.isArray(state.orders)) return [];
-  return state.orders.slice(0, 5).map((order) => ({
+  return state.orders.slice(0, 8).map((order) => ({
     orderNumber: order.orderNumber || order.id,
     storeName: order.storeName || 'MyQK Store',
     status: typeof statusLabel === 'function' ? statusLabel(order.status) : order.status,
+    rawStatus: order.status || '',
     itemCount: Number(order.itemCount || order.items?.length || 0),
     totalAmount: Number(order.totalAmount || 0)
   }));
 }
 
-function getCatalogContext() {
+function aiQueryTerms(message = '') {
+  const ignored = new Set(['the', 'and', 'for', 'with', 'under', 'find', 'want', 'need', 'please', 'suggest', 'basket', 'budget', 'week', 'weekly']);
+  return (String(message).toLowerCase().match(/[a-z0-9]{2,}/g) || [])
+    .filter((term) => !ignored.has(term));
+}
+
+function getCatalogContext(message = '') {
   const visibleStores = Array.isArray(window.stores) ? window.stores : (typeof stores !== 'undefined' ? stores : []);
   const visibleProducts = Array.isArray(window.products) ? window.products : (typeof products !== 'undefined' ? products : []);
+  const terms = aiQueryTerms(message);
+
+  const rankedProducts = visibleProducts
+    .map((product) => {
+      const searchable = `${product?.name || ''} ${product?.brand || ''} ${product?.unit || ''} ${product?.category || ''}`.toLowerCase();
+      const score = terms.reduce((total, term) => total + (searchable.includes(term) ? 3 : 0), 0);
+      return { product, score };
+    })
+    .sort((a, b) => b.score - a.score || Number(a.product?.price || 0) - Number(b.product?.price || 0));
 
   return {
-    stores: visibleStores.slice(0, 8).map((store) => ({
+    stores: visibleStores.slice(0, 15).map((store) => ({
       id: store.id,
       name: store.name,
       category: store.rawCategory || store.category || '',
       time: store.time || '',
       minimumOrder: Number(store.minimumOrder || 0)
     })),
-    products: visibleProducts.slice(0, 30).map((product) => ({
-      name: product.name,
+    products: rankedProducts.slice(0, 80).map(({ product }) => ({
+      id: product.id || product.key || '',
+      name: product.name || '',
       brand: product.brand || '',
       unit: product.unit || '',
       category: product.category || '',
       price: Number(product.price || 0),
-      storeId: product.storeId
+      storeId: product.storeId || null,
+      available: product.active !== false && product.inStock !== false
     }))
   };
 }
 
-function buildAiContext() {
+function buildAiContext(message = '') {
   return {
     app: 'BuyQK customer app',
     deliveryLocation: localStorage.getItem('qkLiveLocation') || document.getElementById('locationAddress')?.textContent || 'Not selected',
+    appRules: {
+      orderFlow: 'Choose one store, add products, open cart, enter receiver name and 10-digit phone number, select delivery location, then tap Place order.',
+      oneStorePerOrder: true,
+      paymentMode: 'Cash on Delivery'
+    },
     cart: getCartContext(),
     orders: getOrderContext(),
-    catalog: getCatalogContext()
+    catalog: getCatalogContext(message)
   };
 }
 
+function normalizeAiText(value) {
+  let text = String(value || '').trim();
+  if (!text) return '';
+
+  const withoutFence = text
+    .replace(/^```(?:json|text)?\s*/i, '')
+    .replace(/\s*```$/i, '')
+    .trim();
+
+  try {
+    const parsed = JSON.parse(withoutFence);
+    if (typeof parsed === 'string') text = parsed;
+    else if (typeof parsed?.reply === 'string') text = parsed.reply;
+    else if (typeof parsed?.answer === 'string') text = parsed.answer;
+    else text = withoutFence;
+  } catch {
+    text = withoutFence;
+  }
+
+  return text
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/^\s*#{1,6}\s*/gm, '')
+    .replace(/^\s*[-*]\s+/gm, '• ')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 function aiMessageMarkup(message) {
-  return `<div class="ai-message ${message.role === 'user' ? 'user' : 'assistant'}"><p>${escapeHtml(message.content)}</p></div>`;
+  const content = normalizeAiText(message.content) || 'I could not generate a response. Please try again.';
+  return `<div class="ai-message ${message.role === 'user' ? 'user' : 'assistant'}"><div>${escapeHtml(content)}</div></div>`;
 }
 
 function renderAiMessages() {
@@ -104,6 +157,17 @@ function renderAiMessages() {
 
   box.innerHTML = `${starter}${aiMessages.map(aiMessageMarkup).join('')}`;
   box.scrollTop = box.scrollHeight;
+}
+
+function setAiBusy(busy) {
+  aiRequestInFlight = busy;
+  const sendButton = document.getElementById('aiSend');
+  const input = document.getElementById('aiInput');
+  if (sendButton) sendButton.disabled = busy;
+  if (input) input.disabled = busy;
+  document.querySelectorAll('[data-ai-prompt]').forEach((button) => {
+    button.disabled = busy;
+  });
 }
 
 function renderAiAssistant() {
@@ -121,53 +185,52 @@ function renderAiAssistant() {
     </section>
   </div>`;
   renderAiMessages();
+  setAiBusy(aiRequestInFlight);
 }
 
 async function askBuyQkAi(text) {
-  const message = text.trim();
-  if (!message) return;
+  const message = String(text || '').trim();
+  if (!message || aiRequestInFlight) return;
 
+  const previousMessages = aiMessages.slice(-8);
   aiMessages.push({ role: 'user', content: message });
   aiMessages.push({ role: 'assistant', content: 'Thinking…' });
   renderAiMessages();
-
-  const sendButton = document.getElementById('aiSend');
-  if (sendButton) sendButton.disabled = true;
+  setAiBusy(true);
 
   try {
-    const previousMessages = aiMessages
-      .filter((item) => item.content !== 'Thinking…')
-      .slice(0, -1)
-      .slice(-8);
-
     const response = await fetch('/api/buyqk-ai', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         message,
         history: previousMessages,
-        context: buildAiContext()
+        context: buildAiContext(message)
       })
     });
 
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.error || 'AI is not available yet.');
+    if (!response.ok) throw new Error(data.error || 'AI is temporarily unavailable.');
+
+    const reply = normalizeAiText(data.reply);
+    if (!reply) throw new Error('AI returned an empty response.');
 
     aiMessages[aiMessages.length - 1] = {
       role: 'assistant',
-      content: data.reply || 'I could not generate a response. Try again.'
+      content: reply
     };
   } catch (error) {
-    const messageText = error?.message || 'AI is not connected right now. Please try again after setup.';
+    const messageText = error?.message || '';
     aiMessages[aiMessages.length - 1] = {
       role: 'assistant',
       content: messageText.includes('GEMINI_API_KEY') || messageText.includes('GOOGLE_API_KEY')
-        ? 'AI backend key is not configured yet. Add GEMINI_API_KEY in your deployment environment.'
-        : `AI setup error: ${messageText}`
+        ? 'BuyQK AI is not configured on the server yet.'
+        : 'BuyQK AI is temporarily unavailable. Please try again.'
     };
   } finally {
-    if (sendButton) sendButton.disabled = false;
+    setAiBusy(false);
     renderAiMessages();
+    document.getElementById('aiInput')?.focus();
   }
 }
 
@@ -213,7 +276,9 @@ document.addEventListener('submit', (event) => {
 
 document.addEventListener('click', (event) => {
   const quickPrompt = event.target.closest('[data-ai-prompt]');
-  if (quickPrompt) askBuyQkAi(quickPrompt.dataset.aiPrompt || quickPrompt.textContent || '');
+  if (quickPrompt && !quickPrompt.disabled) {
+    askBuyQkAi(quickPrompt.dataset.aiPrompt || quickPrompt.textContent || '');
+  }
 });
 
 document.addEventListener('DOMContentLoaded', () => {
