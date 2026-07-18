@@ -8,6 +8,22 @@ const footerIcons = {
   profile: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/></svg>'
 };
 
+const aiMessages = [];
+const aiQuickPrompts = [
+  '₹300 me breakfast basket suggest karo',
+  'Mera current order kaha hai?',
+  'Doodh, bread aur eggs find karo',
+  'Budget me snacks suggest karo'
+];
+
+function ensureAiStylesheet() {
+  if (document.querySelector('link[href^="ai-assistant.css"]')) return;
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = 'ai-assistant.css?v=20260718-ai-1';
+  document.head.appendChild(link);
+}
+
 function ensureAiNavTab() {
   if (typeof navTabs === 'undefined' || !Array.isArray(navTabs)) return;
   if (navTabs.some(([id]) => id === 'ai')) return;
@@ -17,13 +33,150 @@ function ensureAiNavTab() {
   navTabs.splice(trackIndex >= 0 ? trackIndex + 1 : navTabs.length, 0, aiTab);
 }
 
+function getCartContext() {
+  if (typeof state === 'undefined' || !state.cart) return [];
+  return Object.values(state.cart).map(({ product, quantity }) => ({
+    name: product?.name || 'Product',
+    unit: product?.unit || '',
+    price: Number(product?.price || 0),
+    quantity: Number(quantity || 0),
+    storeId: product?.storeId || null
+  }));
+}
+
+function getOrderContext() {
+  if (typeof state === 'undefined' || !Array.isArray(state.orders)) return [];
+  return state.orders.slice(0, 5).map((order) => ({
+    orderNumber: order.orderNumber || order.id,
+    storeName: order.storeName || 'MyQK Store',
+    status: typeof statusLabel === 'function' ? statusLabel(order.status) : order.status,
+    itemCount: Number(order.itemCount || order.items?.length || 0),
+    totalAmount: Number(order.totalAmount || 0)
+  }));
+}
+
+function getCatalogContext() {
+  const visibleStores = Array.isArray(window.stores) ? window.stores : (typeof stores !== 'undefined' ? stores : []);
+  const visibleProducts = Array.isArray(window.products) ? window.products : (typeof products !== 'undefined' ? products : []);
+
+  return {
+    stores: visibleStores.slice(0, 8).map((store) => ({
+      id: store.id,
+      name: store.name,
+      category: store.rawCategory || store.category || '',
+      time: store.time || '',
+      minimumOrder: Number(store.minimumOrder || 0)
+    })),
+    products: visibleProducts.slice(0, 30).map((product) => ({
+      name: product.name,
+      brand: product.brand || '',
+      unit: product.unit || '',
+      category: product.category || '',
+      price: Number(product.price || 0),
+      storeId: product.storeId
+    }))
+  };
+}
+
+function buildAiContext() {
+  return {
+    app: 'BuyQK customer app',
+    deliveryLocation: localStorage.getItem('qkLiveLocation') || document.getElementById('locationAddress')?.textContent || 'Not selected',
+    cart: getCartContext(),
+    orders: getOrderContext(),
+    catalog: getCatalogContext()
+  };
+}
+
+function aiMessageMarkup(message) {
+  return `<div class="ai-message ${message.role === 'user' ? 'user' : 'assistant'}"><p>${escapeHtml(message.content)}</p></div>`;
+}
+
+function renderAiMessages() {
+  const box = document.getElementById('aiMessages');
+  if (!box) return;
+
+  const starter = aiMessages.length ? '' : `
+    <div class="ai-welcome-card">
+      <strong>Ask BuyQK AI</strong>
+      <span>Shopping help, product suggestions, budget baskets, and order support.</span>
+    </div>`;
+
+  box.innerHTML = `${starter}${aiMessages.map(aiMessageMarkup).join('')}`;
+  box.scrollTop = box.scrollHeight;
+}
+
+function renderAiAssistant() {
+  ensureAiStylesheet();
+  $('appMain').innerHTML = `<div class="view ai-view">
+    <section class="ai-hero-card">
+      <span class="ai-pill">BuyQK AI</span>
+      <h2>What do you need today?</h2>
+      <p>Ask in Hindi or English. I can suggest products, build a budget basket, or explain your order status.</p>
+    </section>
+    <div class="ai-quick-row">
+      ${aiQuickPrompts.map((prompt) => `<button type="button" data-ai-prompt="${escapeHtml(prompt)}">${escapeHtml(prompt)}</button>`).join('')}
+    </div>
+    <section class="ai-chat-card" aria-label="BuyQK AI chat">
+      <div class="ai-messages" id="aiMessages"></div>
+      <form class="ai-form" id="aiForm">
+        <input id="aiInput" type="text" maxlength="240" autocomplete="off" placeholder="Ask BuyQK AI...">
+        <button id="aiSend" type="submit">Send</button>
+      </form>
+    </section>
+  </div>`;
+  renderAiMessages();
+}
+
+async function askBuyQkAi(text) {
+  const message = text.trim();
+  if (!message) return;
+
+  aiMessages.push({ role: 'user', content: message });
+  aiMessages.push({ role: 'assistant', content: 'Thinking…' });
+  renderAiMessages();
+
+  const sendButton = document.getElementById('aiSend');
+  if (sendButton) sendButton.disabled = true;
+
+  try {
+    const response = await fetch('/api/buyqk-ai', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message,
+        history: aiMessages.filter((item) => item.content !== 'Thinking…').slice(-8),
+        context: buildAiContext()
+      })
+    });
+
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || 'AI is not available yet.');
+
+    aiMessages[aiMessages.length - 1] = {
+      role: 'assistant',
+      content: data.reply || 'I could not generate a response. Try again.'
+    };
+  } catch (error) {
+    aiMessages[aiMessages.length - 1] = {
+      role: 'assistant',
+      content: error?.message?.includes('OPENAI_API_KEY')
+        ? 'AI backend key is not configured yet. Add OPENAI_API_KEY in your deployment environment.'
+        : 'AI is not connected right now. Please try again after setup.'
+    };
+  } finally {
+    if (sendButton) sendButton.disabled = false;
+    renderAiMessages();
+  }
+}
+
 function installAiTabRenderer() {
   if (typeof renderMain !== 'function' || renderMain.qkAiWrapped) return;
 
   const originalRenderMain = renderMain;
   renderMain = function renderMainWithAiTab() {
     if (typeof state !== 'undefined' && state.activeTab === 'ai') {
-      $('appMain').innerHTML = empty('✦', 'BuyQK AI', 'Coming soon: smart shopping help, product suggestions, and order support.');
+      renderAiAssistant();
       return;
     }
 
@@ -44,10 +197,26 @@ function polishFooterNav() {
   });
 }
 
+ensureAiStylesheet();
 ensureAiNavTab();
 installAiTabRenderer();
 
+document.addEventListener('submit', (event) => {
+  if (event.target?.id !== 'aiForm') return;
+  event.preventDefault();
+  const input = document.getElementById('aiInput');
+  const value = input?.value || '';
+  if (input) input.value = '';
+  askBuyQkAi(value);
+});
+
+document.addEventListener('click', (event) => {
+  const quickPrompt = event.target.closest('[data-ai-prompt]');
+  if (quickPrompt) askBuyQkAi(quickPrompt.dataset.aiPrompt || quickPrompt.textContent || '');
+});
+
 document.addEventListener('DOMContentLoaded', () => {
+  ensureAiStylesheet();
   ensureAiNavTab();
   installAiTabRenderer();
 
