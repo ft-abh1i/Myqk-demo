@@ -3,15 +3,17 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-  <meta name="theme-color" content="#ffffff">
+  <meta name="theme-color" content="#061a3b">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="description" content="QK local delivery frontend">
   <title>QK — Local Delivery</title>
   <link rel="preconnect" href="https://images.unsplash.com" crossorigin>
   <link rel="dns-prefetch" href="https://images.unsplash.com">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preload" href="responsive-shell.css?v=20260718" as="style">
+  <link rel="preload" href="real-customer-app.js?v=20260718-preload" as="script">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="profile.css">
@@ -142,8 +144,20 @@
       }
     }
   </style>
+  <link rel="stylesheet" href="responsive-shell.css?v=20260718">
 </head>
-<body oncontextmenu="return false">
+<body class="qk-preloading" oncontextmenu="return false">
+  <section id="qkPreloader" class="qk-preloader" aria-label="Loading MyQK" aria-live="polite">
+    <div class="qk-preloader-shell">
+      <div class="qk-preloader-content">
+        <div class="qk-preloader-mark" aria-hidden="true">QK</div>
+        <strong>MyQK</strong>
+        <p id="qkPreloaderStatus">Loading nearby stores…</p>
+        <div class="qk-loader-track" aria-hidden="true"><span></span></div>
+      </div>
+    </div>
+  </section>
+
   <div id="app">
     <header class="app-header" id="appHeader">
       <button class="location-btn" id="locationBtn" type="button" aria-label="Select delivery location">
@@ -170,8 +184,10 @@
   <section class="sheet" id="locationSheet" role="dialog" aria-modal="true" aria-labelledby="locationTitle">
     <div class="sheet-panel"><div class="sheet-head"><h2 id="locationTitle">Select location</h2><button class="sheet-close" id="locationClose" type="button" aria-label="Close location sheet">×</button></div><button class="location-access-btn" id="allowLocationBtn" type="button">Give location access</button><div class="detected-location hidden" id="detectedLocationBox"><small>DETECTED LOCATION</small><strong id="detectedLocationText"></strong></div><div class="manual-address hidden" id="manualAddressBox"><p>Add exact address</p><input id="houseInput" type="text" placeholder="House / Flat / Floor" autocomplete="address-line1"><input id="streetInput" type="text" placeholder="Street / Area / Landmark" autocomplete="address-line2"><button class="save-address-btn" id="saveAddressBtn" type="button">Save address</button></div><p class="location-status" id="locationStatus">Tap Give location access to detect your area.</p></div>
   </section>
-  <script src="real-customer-app.js?v=20260717-category-fix-2" defer></script>
+  <script src="app-preloader.js?v=20260718" defer></script>
+  <script src="real-customer-app.js?v=20260718-preload" defer></script>
   <script src="homepage-stores-only.js?v=20260718" defer></script>
+  <script src="catalog-ready-bridge.js?v=20260718" defer></script>
   <script src="customer-checkout.js" defer></script>
   <script src="profile.js" defer></script>
   <script src="profile-layout.js" defer></script>
