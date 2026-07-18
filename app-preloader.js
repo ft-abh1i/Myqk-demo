@@ -4,14 +4,140 @@
   const root = document.documentElement;
   const body = document.body;
   const preloader = document.getElementById('qkPreloader');
-  const status = document.getElementById('qkPreloaderStatus');
   const startedAt = performance.now();
-  const minimumVisibleMs = 650;
+  const minimumVisibleMs = 1100;
   const maximumWaitMs = 10000;
+  const splashImageUrl = 'https://i.ibb.co/HLKt3W85/file-00000000cc5c82099d7e652aaded6700.png';
 
   let catalogReady = false;
   let windowLoaded = document.readyState === 'complete';
   let released = false;
+  let progressValue = 8;
+  let progressTimer = null;
+  let status = null;
+  let progressBar = null;
+  let progressShell = null;
+
+  function buildSplashScreen() {
+    if (!preloader) return;
+
+    const style = document.createElement('style');
+    style.id = 'qk-image-splash-styles';
+    style.textContent = `
+      .qk-preloader {
+        display: block !important;
+        background: #031630 !important;
+      }
+
+      .qk-image-splash {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #031630;
+      }
+
+      .qk-image-splash__art {
+        position: absolute;
+        inset: 0;
+        display: block;
+        width: 100%;
+        height: 100%;
+        max-width: none;
+        object-fit: cover;
+        object-position: center;
+        user-select: none;
+        -webkit-user-drag: none;
+      }
+
+      .qk-image-splash__loader {
+        position: absolute;
+        top: 81.5%;
+        left: 50%;
+        width: min(54vw, 270px);
+        height: 5px;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, .13);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, .18);
+        box-shadow: 0 4px 18px rgba(0, 0, 0, .22);
+        transform: translateX(-50%);
+      }
+
+      .qk-image-splash__loader > span {
+        display: block;
+        width: 8%;
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, #f4aa00 0%, #ffc629 55%, #ffe08a 100%);
+        box-shadow: 0 0 12px rgba(255, 190, 35, .56);
+        transition: width .36s cubic-bezier(.22, 1, .36, 1);
+      }
+
+      .qk-image-splash__status {
+        position: absolute !important;
+        width: 1px !important;
+        height: 1px !important;
+        padding: 0 !important;
+        margin: -1px !important;
+        overflow: hidden !important;
+        clip: rect(0, 0, 0, 0) !important;
+        white-space: nowrap !important;
+        border: 0 !important;
+      }
+
+      @media (min-width: 560px) {
+        .qk-image-splash {
+          left: 50%;
+          width: min(100%, var(--qk-app-max-width));
+          transform: translateX(-50%);
+        }
+      }
+
+      @media (max-height: 680px) {
+        .qk-image-splash__loader {
+          top: 81%;
+          width: min(50vw, 238px);
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .qk-image-splash__loader > span {
+          transition-duration: .01ms;
+        }
+      }
+    `;
+    document.head.appendChild(style);
+
+    preloader.innerHTML = `
+      <div class="qk-image-splash">
+        <img
+          class="qk-image-splash__art"
+          src="${splashImageUrl}"
+          alt="BuyQK — Local stores, faster delivery"
+          fetchpriority="high"
+          decoding="async"
+        >
+        <div
+          id="qkPreloaderProgressShell"
+          class="qk-image-splash__loader"
+          role="progressbar"
+          aria-label="Loading BuyQK"
+          aria-valuemin="0"
+          aria-valuemax="100"
+          aria-valuenow="8"
+        >
+          <span id="qkPreloaderProgress"></span>
+        </div>
+        <p id="qkPreloaderStatus" class="qk-image-splash__status">Preparing BuyQK…</p>
+      </div>
+    `;
+
+    status = document.getElementById('qkPreloaderStatus');
+    progressBar = document.getElementById('qkPreloaderProgress');
+    progressShell = document.getElementById('qkPreloaderProgressShell');
+  }
 
   function setViewportHeight() {
     const viewportHeight = Math.round(
@@ -21,6 +147,29 @@
       || 0
     );
     if (viewportHeight > 0) root.style.setProperty('--qk-viewport-height', `${viewportHeight}px`);
+  }
+
+  function setProgress(value, message) {
+    progressValue = Math.max(progressValue, Math.min(100, Math.round(value)));
+    if (progressBar) progressBar.style.width = `${progressValue}%`;
+    if (progressShell) progressShell.setAttribute('aria-valuenow', String(progressValue));
+    if (status && message) status.textContent = message;
+  }
+
+  function startMeasuredProgress() {
+    setProgress(14, 'Starting BuyQK…');
+
+    progressTimer = window.setInterval(() => {
+      const ceiling = catalogReady && windowLoaded ? 94 : catalogReady || windowLoaded ? 78 : 48;
+      if (progressValue >= ceiling) return;
+      setProgress(progressValue + (progressValue < 35 ? 4 : 2));
+    }, 260);
+  }
+
+  function stopMeasuredProgress() {
+    if (!progressTimer) return;
+    clearInterval(progressTimer);
+    progressTimer = null;
   }
 
   function delay(milliseconds) {
@@ -53,11 +202,15 @@
     if (!force && (!catalogReady || !windowLoaded)) return;
 
     released = true;
-    if (status) status.textContent = 'Opening MyQK…';
+    stopMeasuredProgress();
+    setProgress(90, 'Finishing setup…');
 
     await Promise.all([waitForFonts(), waitForRenderedImages()]);
+    setProgress(100, 'Opening BuyQK…');
+
     const remaining = Math.max(0, minimumVisibleMs - (performance.now() - startedAt));
     if (remaining) await delay(remaining);
+    await delay(180);
 
     body.classList.remove('qk-preloading');
     body.classList.add('qk-ready');
@@ -65,7 +218,18 @@
     setTimeout(() => preloader?.remove(), 280);
   }
 
+  buildSplashScreen();
   setViewportHeight();
+  startMeasuredProgress();
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      setProgress(28, 'Preparing the app…');
+    }, { once: true });
+  } else {
+    setProgress(28, 'Preparing the app…');
+  }
+
   window.addEventListener('resize', setViewportHeight, { passive: true });
   window.addEventListener('orientationchange', () => {
     setTimeout(setViewportHeight, 80);
@@ -75,20 +239,23 @@
 
   window.addEventListener('load', () => {
     windowLoaded = true;
+    setProgress(catalogReady ? 88 : 62, 'Loading interface…');
     release();
   }, { once: true });
 
   window.addEventListener('qk:catalog-ready', (event) => {
     catalogReady = true;
-    if (status) status.textContent = event.detail?.message || 'Preparing nearby stores…';
+    setProgress(windowLoaded ? 88 : 70, event.detail?.message || 'Preparing nearby stores…');
     release();
   }, { once: true });
 
+  if (windowLoaded) setProgress(62, 'Loading interface…');
+
   setTimeout(() => {
     if (released) return;
-    if (status) status.textContent = 'Opening with the available connection…';
     windowLoaded = true;
     catalogReady = true;
+    setProgress(92, 'Opening with the available connection…');
     release(true);
   }, maximumWaitMs);
 })();
