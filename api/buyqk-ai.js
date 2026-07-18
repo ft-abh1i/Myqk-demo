@@ -1,5 +1,5 @@
 const DEFAULT_MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-flash-latest'];
-const MAX_OUTPUT_TOKENS = 2048;
+const DEFAULT_MAX_OUTPUT_TOKENS = 8192;
 
 function readBody(req) {
   if (req.body && typeof req.body === 'object') return Promise.resolve(req.body);
@@ -43,7 +43,6 @@ function looksIncomplete(text, finishReason) {
   const clean = String(text || '').trim();
   if (!clean) return true;
   if (finishReason === 'MAX_TOKENS') return true;
-  if (clean.length < 90) return true;
 
   const lastWord = clean.split(/\s+/).pop()?.toLowerCase().replace(/[^a-z]/g, '');
   return ['from', 'under', 'with', 'for', 'and', 'or', 'to', 'of', 'the', 'a', 'an'].includes(lastWord);
@@ -62,6 +61,11 @@ function compactHistory(history) {
     .join('\n') || 'No previous chat.';
 }
 
+function outputTokenLimit() {
+  const configured = Number.parseInt(process.env.GEMINI_MAX_OUTPUT_TOKENS || '', 10);
+  return Number.isFinite(configured) && configured > 0 ? configured : DEFAULT_MAX_OUTPUT_TOKENS;
+}
+
 function buildPrompt({ message, history, contextText, retry = false }) {
   return `Customer message: ${message}
 
@@ -71,7 +75,7 @@ ${compactHistory(history)}
 Current BuyQK app context:
 ${contextText}
 
-Answer as BuyQK AI in clear, simple English only. Give the complete answer, not only the opening line. If the exact live catalog is limited, say that clearly and still give a useful practical basket suggestion. Use short sections or bullet points when useful. Do not end mid-sentence.${retry ? '\n\nThe previous response looked incomplete, so rewrite it fully from start to finish.' : ''}`;
+Answer as BuyQK AI in clear, simple English only. Give the complete answer. Do not summarize too aggressively. Do not cut the response early. If the exact live catalog is limited, say that clearly and still give a useful practical basket suggestion with example items, estimated totals, and next steps. Use short sections or bullet points when useful. Do not end mid-sentence.${retry ? '\n\nThe previous response looked incomplete, so rewrite it fully from start to finish.' : ''}`;
 }
 
 function configuredModels() {
@@ -101,7 +105,7 @@ async function callGemini({ apiKey, model, prompt }) {
         parts: [{ text: prompt }]
       }],
       generationConfig: {
-        maxOutputTokens: MAX_OUTPUT_TOKENS,
+        maxOutputTokens: outputTokenLimit(),
         temperature: 0.6
       }
     })
@@ -181,7 +185,8 @@ module.exports = async function handler(req, res) {
       res.status(200).json({
         model,
         reply: reply || 'I could not generate a complete response. Please try again.',
-        finishReason
+        finishReason,
+        maxOutputTokens: outputTokenLimit()
       });
       return;
     } catch (error) {
