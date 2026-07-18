@@ -27,10 +27,10 @@
         <article class="grocery-category-card">
           <div class="grocery-category-image">
             <img
-              src="/assets/Dairy,%20bread%20and%20eggs.webp"
+              src="/assets/dairy-bread-eggs-transparent.webp"
               alt="Dairy, Bread and Eggs"
-              width="1536"
-              height="1536"
+              width="1024"
+              height="1024"
               loading="lazy"
               decoding="async"
             >
