@@ -273,17 +273,15 @@ body:not(.secondary-tab-active) .home-category-strip {
   padding-left: max(16px, var(--qk-safe-left)) !important;
 }
 
+/* Only the neutral splash host remains here. Image and real progress styles live in app-preloader.js. */
 .qk-preloader {
   position: fixed;
   inset: 0;
   z-index: 10000;
-  display: grid;
-  place-items: center;
   width: 100%;
   height: var(--qk-viewport-height);
   overflow: hidden;
-  background: #061a3b;
-  color: #fff;
+  background: #031630;
   opacity: 1;
   visibility: visible;
   transition: opacity .24s ease, visibility .24s ease;
@@ -293,71 +291,6 @@ body:not(.secondary-tab-active) .home-category-strip {
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
-}
-
-.qk-preloader-shell {
-  display: grid;
-  place-items: center;
-  width: min(100%, var(--qk-app-max-width));
-  height: 100%;
-  padding: max(24px, var(--qk-safe-top)) max(24px, var(--qk-safe-right)) max(24px, var(--qk-safe-bottom)) max(24px, var(--qk-safe-left));
-  text-align: center;
-}
-
-.qk-preloader-content {
-  width: min(100%, 260px);
-}
-
-.qk-preloader-mark {
-  display: grid;
-  place-items: center;
-  width: 72px;
-  height: 72px;
-  margin: 0 auto 16px;
-  border-radius: 24px;
-  background: #f8c944;
-  color: #061a3b;
-  font-size: 24px;
-  font-weight: 900;
-  letter-spacing: -.04em;
-  box-shadow: 0 14px 34px rgba(0,0,0,.22);
-}
-
-.qk-preloader strong {
-  display: block;
-  font-size: 22px;
-  font-weight: 800;
-}
-
-.qk-preloader p {
-  min-height: 20px;
-  margin-top: 8px;
-  color: rgba(255,255,255,.7);
-  font-size: 13px;
-  line-height: 1.45;
-}
-
-.qk-loader-track {
-  height: 4px;
-  margin-top: 20px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: rgba(255,255,255,.14);
-}
-
-.qk-loader-track span {
-  display: block;
-  width: 45%;
-  height: 100%;
-  border-radius: inherit;
-  background: #f8c944;
-  animation: qk-loader-slide 1.05s ease-in-out infinite;
-}
-
-@keyframes qk-loader-slide {
-  0% { transform: translateX(-110%); }
-  50% { transform: translateX(125%); }
-  100% { transform: translateX(245%); }
 }
 
 @media (max-width: 390px) {
@@ -442,11 +375,5 @@ body:not(.secondary-tab-active) .home-category-strip {
 
   body:not(.secondary-tab-active) #appHeader .location-address {
     font-size: 13px !important;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .qk-loader-track span {
-    animation-duration: 1.8s;
   }
 }
