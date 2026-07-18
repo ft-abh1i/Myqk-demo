@@ -24,6 +24,19 @@
           </div>
           <span class="grocery-category-label">Vegetables &amp; Fruits</span>
         </article>
+        <article class="grocery-category-card">
+          <div class="grocery-category-image">
+            <img
+              src="/assets/Dairy,%20bread%20and%20eggs.webp"
+              alt="Dairy, Bread and Eggs"
+              width="1536"
+              height="1536"
+              loading="lazy"
+              decoding="async"
+            >
+          </div>
+          <span class="grocery-category-label">Dairy, Bread &amp; Eggs</span>
+        </article>
       </div>
     </section>`;
 
