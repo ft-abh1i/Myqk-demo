@@ -161,9 +161,9 @@
     <div class="overlay-header"><button class="round-back" id="cartClose" type="button" aria-label="Close cart"><svg viewBox="0 0 24 24"><path d="m15 19-7-7 7-7"/></svg></button><h2>Your Cart</h2></div>
     <div class="cart-body" id="cartBody"></div>
     <div class="cart-footer" id="cartFooter">
-      <section class="customer-details-card" aria-labelledby="customerDetailsTitle"><div class="checkout-section-head"><div><small>DELIVERY DETAILS</small><strong id="customerDetailsTitle">Who should receive this order?</strong></div><span>Required</span></div><label class="checkout-field"><span>Full name</span><input id="customerNameInput" type="text" maxlength="60" autocomplete="name" placeholder="Enter your name"></label><label class="checkout-field"><span>Phone number</span><input id="customerPhoneInput" type="tel" inputmode="numeric" maxlength="10" autocomplete="tel" placeholder="10-digit mobile number"></label><p class="checkout-hint">UI preview only. No backend is connected.</p></section>
+      <section class="customer-details-card" aria-labelledby="customerDetailsTitle"><div class="checkout-section-head"><div><small>DELIVERY DETAILS</small><strong id="customerDetailsTitle">Who should receive this order?</strong></div><span>Required</span></div><label class="checkout-field"><span>Full name</span><input id="customerNameInput" type="text" maxlength="60" autocomplete="name" placeholder="Enter your name"></label><label class="checkout-field"><span>Phone number</span><input id="customerPhoneInput" type="tel" inputmode="numeric" maxlength="10" autocomplete="tel" placeholder="10-digit mobile number"></label><p class="checkout-hint">Your order will be verified and sent directly to the selected merchant.</p></section>
       <section class="bill-details-card" aria-label="Bill details"><div class="checkout-section-head"><div><small>PAYMENT SUMMARY</small><strong>Bill details</strong></div></div><div class="bill-row"><span>Item subtotal</span><strong id="cartSubtotal">₹0</strong></div><div class="bill-row"><span>Delivery fee</span><strong id="cartDeliveryFee">₹0</strong></div><div class="bill-row"><span>Platform fee</span><strong id="cartPlatformFee">₹0</strong></div><div class="bill-row bill-total"><span>To pay</span><strong id="cartPayable">₹0</strong></div></section>
-      <div class="checkout-error hidden" id="checkoutError" role="alert"></div><div class="cart-total"><span>Total</span><strong id="cartTotal">₹0</strong></div><button class="checkout-btn" id="checkoutBtn" type="button">Preview order</button>
+      <div class="checkout-error hidden" id="checkoutError" role="alert"></div><div class="cart-total"><span>Total</span><strong id="cartTotal">₹0</strong></div><button class="checkout-btn" id="checkoutBtn" type="button">Place order</button>
     </div>
   </section>
   <section class="sheet" id="locationSheet" role="dialog" aria-modal="true" aria-labelledby="locationTitle">
@@ -178,6 +178,7 @@
   <script src="i18n.js" defer></script>
   <script src="catalog-art.js" defer></script>
   <script src="customer-mvp-hardening.js" defer></script>
+  <script src="customer-order-system.js?v=20260718" defer></script>
   <script src="footer-nav-fix.js" defer></script>
   <script src="app-history.js" defer></script>
 </body>
