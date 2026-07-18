@@ -160,8 +160,8 @@ async function askBuyQkAi(text) {
   } catch (error) {
     aiMessages[aiMessages.length - 1] = {
       role: 'assistant',
-      content: error?.message?.includes('OPENAI_API_KEY')
-        ? 'AI backend key is not configured yet. Add OPENAI_API_KEY in your deployment environment.'
+      content: error?.message?.includes('GEMINI_API_KEY') || error?.message?.includes('GOOGLE_API_KEY')
+        ? 'AI backend key is not configured yet. Add GEMINI_API_KEY in your deployment environment.'
         : 'AI is not connected right now. Please try again after setup.'
     };
   } finally {
