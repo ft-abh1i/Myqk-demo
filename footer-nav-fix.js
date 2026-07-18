@@ -10,17 +10,17 @@ const footerIcons = {
 
 const aiMessages = [];
 const aiQuickPrompts = [
-  '₹300 me breakfast basket suggest karo',
-  'Mera current order kaha hai?',
-  'Doodh, bread aur eggs find karo',
-  'Budget me snacks suggest karo'
+  'Suggest a breakfast basket under ₹300',
+  'Where is my current order?',
+  'Find milk, bread, and eggs',
+  'Suggest snacks on a budget'
 ];
 
 function ensureAiStylesheet() {
   if (document.querySelector('link[href^="ai-assistant.css"]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = 'ai-assistant.css?v=20260718-ai-1';
+  link.href = 'ai-assistant.css?v=20260718-ai-english-1';
   document.head.appendChild(link);
 }
 
@@ -109,11 +109,6 @@ function renderAiMessages() {
 function renderAiAssistant() {
   ensureAiStylesheet();
   $('appMain').innerHTML = `<div class="view ai-view">
-    <section class="ai-hero-card">
-      <span class="ai-pill">BuyQK AI</span>
-      <h2>What do you need today?</h2>
-      <p>Ask in Hindi or English. I can suggest products, build a budget basket, or explain your order status.</p>
-    </section>
     <div class="ai-quick-row">
       ${aiQuickPrompts.map((prompt) => `<button type="button" data-ai-prompt="${escapeHtml(prompt)}">${escapeHtml(prompt)}</button>`).join('')}
     </div>
