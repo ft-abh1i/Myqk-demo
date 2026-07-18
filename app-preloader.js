@@ -65,7 +65,7 @@
       /* Positioned between the category icons and the printed loading text. */
       .qk-image-splash__loader {
         position: absolute;
-        top: 87.4%;
+        top: 88%;
         left: 50%;
         width: min(54vw, 270px);
         height: 5px;
@@ -109,7 +109,7 @@
 
       @media (max-height: 680px) {
         .qk-image-splash__loader {
-          top: 87.1%;
+          top: 87.7%;
           width: min(50vw, 238px);
         }
       }
