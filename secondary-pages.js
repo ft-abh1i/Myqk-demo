@@ -4,8 +4,8 @@
   const LANGUAGE_KEY = 'qkProfileLanguage';
   const SECONDARY_TABS = new Set(['orders', 'track', 'ai', 'profile']);
   const TITLES = {
-    English: { orders: 'Orders', track: 'Track', ai: 'AI', profile: 'Profile', back: 'Back to Dark Store' },
-    Hindi: { orders: 'ऑर्डर', track: 'ट्रैक', ai: 'AI', profile: 'प्रोफाइल', back: 'डार्क स्टोर पर वापस जाएं' }
+    English: { orders: 'Orders', track: 'Track', ai: 'BuyQK AI', profile: 'Profile', back: 'Back to Dark Store' },
+    Hindi: { orders: 'ऑर्डर', track: 'ट्रैक', ai: 'BuyQK AI', profile: 'प्रोफाइल', back: 'डार्क स्टोर पर वापस जाएं' }
   };
 
   let main = null;
