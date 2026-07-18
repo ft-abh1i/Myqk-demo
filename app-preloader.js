@@ -18,8 +18,7 @@
   let progressBar = null;
   let progressShell = null;
 
-  // Start downloading the local WebP immediately and reuse this exact node
-  // inside the splash screen so the browser does not make a second request.
+  // Download the local splash immediately and reuse this node in the preloader.
   const splashImage = new Image(941, 1672);
   splashImage.src = splashImageUrl;
   splashImage.alt = 'BuyQK — Local stores, faster delivery';
@@ -63,9 +62,10 @@
         -webkit-user-drag: none;
       }
 
+      /* Positioned between the category icons and the printed loading text. */
       .qk-image-splash__loader {
         position: absolute;
-        top: 81.5%;
+        top: 87.4%;
         left: 50%;
         width: min(54vw, 270px);
         height: 5px;
@@ -74,7 +74,7 @@
         border-radius: 999px;
         background: rgba(255, 255, 255, .18);
         box-shadow: 0 4px 18px rgba(0, 0, 0, .22);
-        transform: translateX(-50%);
+        transform: translate(-50%, -50%);
       }
 
       .qk-image-splash__loader > span {
@@ -109,7 +109,7 @@
 
       @media (max-height: 680px) {
         .qk-image-splash__loader {
-          top: 81%;
+          top: 87.1%;
           width: min(50vw, 238px);
         }
       }
@@ -164,6 +164,7 @@
       || document.documentElement.clientHeight
       || 0
     );
+
     if (viewportHeight > 0) {
       root.style.setProperty('--qk-viewport-height', `${viewportHeight}px`);
     }
@@ -180,7 +181,12 @@
     setProgress(14, 'Starting BuyQK…');
 
     progressTimer = window.setInterval(() => {
-      const ceiling = catalogReady && windowLoaded ? 94 : catalogReady || windowLoaded ? 78 : 48;
+      const ceiling = catalogReady && windowLoaded
+        ? 94
+        : catalogReady || windowLoaded
+          ? 78
+          : 48;
+
       if (progressValue >= ceiling) return;
       setProgress(progressValue + (progressValue < 35 ? 4 : 2));
     }, 240);
