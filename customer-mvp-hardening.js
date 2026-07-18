@@ -1,81 +1,173 @@
-const $ = (selector) => document.querySelector(selector);
-const ORDER_LOCK_KEY = 'qkOrderPlacementLock';
-const LOCK_TTL_MS = 20_000;
+'use strict';
 
-function toast(message, error = false) {
-  const element = $('#toast');
-  if (!element) return;
-  element.textContent = message;
-  element.classList.add('show');
-  element.classList.toggle('error', error);
-  clearTimeout(toast.timer);
-  toast.timer = setTimeout(() => {
-    element.classList.remove('show', 'error');
-  }, 3200);
-}
+(() => {
+  const queryOne = (selector) => document.querySelector(selector);
+  const ORDER_LOCK_KEY = 'qkOrderPlacementLock';
+  const LOCK_TTL_MS = 20_000;
+  const REAL_ORDER_STATUSES = new Set([
+    'pending_merchant',
+    'merchant_accepted',
+    'preparing',
+    'ready_for_pickup',
+    'accepted',
+    'arrived_pickup',
+    'picked_up',
+    'completed',
+    'merchant_rejected',
+    'cancelled'
+  ]);
+  const LEGACY_ORDER_KEYS = [
+    'qkOrders',
+    'qkOrderHistory',
+    'qkPendingOrder',
+    'pendingOrder',
+    'fakeOrder',
+    'fakeOrders',
+    'sampleOrder',
+    'sampleOrders'
+  ];
 
-function readLock() {
-  const value = Number(sessionStorage.getItem(ORDER_LOCK_KEY));
-  return Number.isFinite(value) && Date.now() - value < LOCK_TTL_MS;
-}
-
-function setCheckoutAvailability() {
-  const button = $('#checkoutBtn');
-  if (!button) return;
-  const offline = !navigator.onLine;
-  button.disabled = offline || readLock();
-  if (offline) button.textContent = 'Reconnect to continue';
-  else if (readLock()) button.textContent = 'Placing order…';
-  else if (button.textContent === 'Reconnect to continue' || button.textContent === 'Placing order…') button.textContent = 'Proceed to Buy';
-}
-
-function guardCheckout(event) {
-  if (!navigator.onLine) {
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    toast('Internet connection is required to place an order.', true);
-    return;
+  function showRuntimeToast(message, error = false) {
+    const element = queryOne('#toast');
+    if (!element) return;
+    element.textContent = message;
+    element.classList.add('show');
+    element.classList.toggle('error', error);
+    clearTimeout(showRuntimeToast.timer);
+    showRuntimeToast.timer = setTimeout(() => {
+      element.classList.remove('show', 'error');
+    }, 3200);
   }
-  if (readLock()) {
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    toast('Your order is already being placed.', true);
-    return;
+
+  function readLock() {
+    const value = Number(sessionStorage.getItem(ORDER_LOCK_KEY));
+    return Number.isFinite(value) && Date.now() - value < LOCK_TTL_MS;
   }
-  sessionStorage.setItem(ORDER_LOCK_KEY, String(Date.now()));
-  setCheckoutAvailability();
-  window.setTimeout(() => {
+
+  function setCheckoutAvailability() {
+    const button = queryOne('#checkoutBtn');
+    if (!button) return;
+    const offline = !navigator.onLine;
+    button.disabled = offline || readLock();
+    if (offline) button.textContent = 'Reconnect to continue';
+    else if (readLock()) button.textContent = 'Placing order…';
+    else button.textContent = 'Place order';
+  }
+
+  function guardCheckout(event) {
+    if (!navigator.onLine) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      showRuntimeToast('Internet connection is required to place an order.', true);
+      return;
+    }
+    if (readLock()) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      showRuntimeToast('Your order is already being placed.', true);
+      return;
+    }
+    sessionStorage.setItem(ORDER_LOCK_KEY, String(Date.now()));
+    setCheckoutAvailability();
+    window.setTimeout(() => {
+      sessionStorage.removeItem(ORDER_LOCK_KEY);
+      setCheckoutAvailability();
+    }, LOCK_TTL_MS);
+  }
+
+  function validateRuntime() {
+    if (!window.isSecureContext) showRuntimeToast('Secure HTTPS is required for live location.', true);
+    if (!navigator.geolocation) {
+      queryOne('#allowLocationBtn')?.setAttribute('disabled', 'disabled');
+      queryOne('#useCurrentLocationBtn')?.setAttribute('disabled', 'disabled');
+      showRuntimeToast('Location is not supported on this device.', true);
+    }
+  }
+
+  function removeLegacyOrderStorage() {
+    LEGACY_ORDER_KEYS.forEach((key) => {
+      localStorage.removeItem(key);
+      sessionStorage.removeItem(key);
+    });
+  }
+
+  function isRealOrder(order) {
+    if (!order || typeof order !== 'object') return false;
+    if (order.status === 'pending' || !REAL_ORDER_STATUSES.has(order.status)) return false;
+    if (typeof order.orderNumber !== 'string' || !order.orderNumber.startsWith('QK')) return false;
+    if (typeof order.customerId !== 'string' || order.customerId !== state.user?.uid) return false;
+    if (typeof order.merchantId !== 'string' || !order.merchantId.trim()) return false;
+    if (typeof order.storeId !== 'string' || !order.storeId.trim()) return false;
+    if (!Array.isArray(order.items) || order.items.length === 0) return false;
+    if (!Number.isFinite(Number(order.totalAmount))) return false;
+    if (!order.createdAt && !Number(order.createdAtMs)) return false;
+    return true;
+  }
+
+  function removeFakeOrdersFromState() {
+    if (typeof state === 'undefined' || !Array.isArray(state.orders)) return;
+    state.orders = state.orders.filter(isRealOrder);
+  }
+
+  if (typeof statusLabel === 'function') {
+    const originalStatusLabel = statusLabel;
+    statusLabel = function realOrderStatusLabel(status) {
+      if (status === 'pending_merchant') return 'Order placed';
+      return originalStatusLabel(status);
+    };
+  }
+
+  if (typeof renderOrders === 'function') {
+    const originalRenderOrders = renderOrders;
+    renderOrders = function renderRealOrdersOnly() {
+      removeFakeOrdersFromState();
+      return originalRenderOrders();
+    };
+  }
+
+  if (typeof activeOrder === 'function') {
+    const originalActiveOrder = activeOrder;
+    activeOrder = function getRealActiveOrder() {
+      removeFakeOrdersFromState();
+      return originalActiveOrder();
+    };
+  }
+
+  if (typeof updateLiveOrderBanner === 'function') {
+    const originalUpdateLiveOrderBanner = updateLiveOrderBanner;
+    updateLiveOrderBanner = function updateRealOrderBanner() {
+      removeFakeOrdersFromState();
+      return originalUpdateLiveOrderBanner();
+    };
+  }
+
+  window.addEventListener('online', () => {
     sessionStorage.removeItem(ORDER_LOCK_KEY);
     setCheckoutAvailability();
-  }, LOCK_TTL_MS);
-}
+    showRuntimeToast('Internet connection restored.');
+  });
 
-function validateRuntime() {
-  if (!window.isSecureContext) toast('Secure HTTPS is required for live location.', true);
-  if (!navigator.geolocation) {
-    $('#allowLocationBtn')?.setAttribute('disabled', 'disabled');
-    $('#useCurrentLocationBtn')?.setAttribute('disabled', 'disabled');
-    toast('Location is not supported on this device.', true);
-  }
-}
+  window.addEventListener('offline', () => {
+    setCheckoutAvailability();
+    showRuntimeToast('You are offline. Cart is saved on this device.', true);
+  });
 
-window.addEventListener('online', () => {
-  sessionStorage.removeItem(ORDER_LOCK_KEY);
-  setCheckoutAvailability();
-  toast('Internet connection restored.');
-});
-window.addEventListener('offline', () => {
-  setCheckoutAvailability();
-  toast('You are offline. Cart is saved on this device.', true);
-});
-window.addEventListener('unhandledrejection', (event) => {
-  console.error('Unhandled customer app error:', event.reason);
-  sessionStorage.removeItem(ORDER_LOCK_KEY);
-  setCheckoutAvailability();
-});
+  window.addEventListener('unhandledrejection', (event) => {
+    console.error('Unhandled customer app error:', event.reason);
+    sessionStorage.removeItem(ORDER_LOCK_KEY);
+    setCheckoutAvailability();
+  });
 
-document.addEventListener('DOMContentLoaded', () => {
-  validateRuntime();
-  setCheckoutAvailability();
-  $('#checkoutBtn')?.addEventListener('click', guardCheckout, true);
-});
+  document.addEventListener('DOMContentLoaded', () => {
+    removeLegacyOrderStorage();
+    removeFakeOrdersFromState();
+    validateRuntime();
+    setCheckoutAvailability();
+    queryOne('#checkoutBtn')?.addEventListener('click', guardCheckout, true);
+
+    if (typeof updateLiveOrderBanner === 'function') updateLiveOrderBanner();
+    if (typeof state !== 'undefined' && ['orders', 'track'].includes(state.activeTab) && typeof renderMain === 'function') {
+      renderMain();
+    }
+  });
+})();
