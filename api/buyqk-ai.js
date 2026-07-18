@@ -1,4 +1,4 @@
-const DEFAULT_MODEL = 'gemini-2.5-flash';
+const DEFAULT_MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-flash-latest'];
 
 function readBody(req) {
   if (req.body && typeof req.body === 'object') return Promise.resolve(req.body);
@@ -38,18 +38,62 @@ function compactContext(context) {
   return JSON.stringify(context || {}, null, 2).slice(0, 6500);
 }
 
-function toGeminiContents(history, message, contextText) {
-  const safeHistory = Array.isArray(history) ? history.slice(-8) : [];
-  return [
-    ...safeHistory.map((item) => ({
-      role: item.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: String(item.content || '').slice(0, 900) }]
-    })),
-    {
-      role: 'user',
-      parts: [{ text: `Customer message: ${message}\n\nCurrent BuyQK app context:\n${contextText}` }]
-    }
-  ];
+function compactHistory(history) {
+  if (!Array.isArray(history)) return 'No previous chat.';
+
+  return history
+    .slice(-6)
+    .map((item) => `${item.role === 'assistant' ? 'BuyQK AI' : 'Customer'}: ${String(item.content || '').slice(0, 700)}`)
+    .join('\n') || 'No previous chat.';
+}
+
+function buildPrompt({ message, history, contextText }) {
+  return `Customer message: ${message}
+
+Recent chat history:
+${compactHistory(history)}
+
+Current BuyQK app context:
+${contextText}
+
+Answer as BuyQK AI. Keep it short, practical, and in the same language style as the customer.`;
+}
+
+function configuredModels() {
+  const primary = process.env.GEMINI_MODEL?.trim();
+  return primary
+    ? [primary, ...DEFAULT_MODELS.filter((model) => model !== primary)]
+    : DEFAULT_MODELS;
+}
+
+async function callGemini({ apiKey, model, prompt }) {
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-goog-api-key': apiKey
+    },
+    body: JSON.stringify({
+      systemInstruction: {
+        parts: [{
+          text: 'You are BuyQK AI, a concise shopping assistant inside a local delivery app in India. Help users find products, build budget baskets, understand order status, and make practical purchase suggestions. Reply in the same language style as the user, usually Hinglish for Hindi-English mixed messages. Do not claim a product is available unless it appears in the provided catalog context. Keep answers short and actionable.'
+        }]
+      },
+      contents: [{
+        role: 'user',
+        parts: [{ text: prompt }]
+      }],
+      generationConfig: {
+        maxOutputTokens: 420,
+        temperature: 0.7
+      }
+    })
+  });
+
+  const data = await response.json().catch(() => ({}));
+  return { response, data };
 }
 
 module.exports = async function handler(req, res) {
@@ -82,44 +126,33 @@ module.exports = async function handler(req, res) {
     return;
   }
 
-  const model = process.env.GEMINI_MODEL || DEFAULT_MODEL;
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+  const prompt = buildPrompt({
+    message,
+    history: body.history,
+    contextText
+  });
 
-  try {
-    const aiResponse = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-goog-api-key': apiKey
-      },
-      body: JSON.stringify({
-        systemInstruction: {
-          parts: [{
-            text: 'You are BuyQK AI, a concise shopping assistant inside a local delivery app in India. Help users find products, build budget baskets, understand order status, and make practical purchase suggestions. Reply in the same language style as the user, usually Hinglish for Hindi-English mixed messages. Do not claim a product is available unless it appears in the provided catalog context. Keep answers short and actionable.'
-          }]
-        },
-        contents: toGeminiContents(body.history, message, contextText),
-        generationConfig: {
-          maxOutputTokens: 420,
-          temperature: 0.7
-        }
-      })
-    });
+  let lastError = 'Gemini request failed.';
 
-    const data = await aiResponse.json().catch(() => ({}));
-    if (!aiResponse.ok) {
-      res.status(aiResponse.status).json({
-        error: data?.error?.message || 'Gemini request failed.'
+  for (const model of configuredModels()) {
+    try {
+      const { response, data } = await callGemini({ apiKey, model, prompt });
+      if (!response.ok) {
+        lastError = data?.error?.message || `Gemini request failed with status ${response.status}.`;
+        continue;
+      }
+
+      res.status(200).json({
+        model,
+        reply: extractGeminiText(data) || 'I could not generate a response. Try again.'
       });
       return;
+    } catch (error) {
+      lastError = error?.message || 'Gemini request failed.';
     }
-
-    res.status(200).json({
-      reply: extractGeminiText(data) || 'I could not generate a response. Try again.'
-    });
-  } catch (error) {
-    res.status(500).json({
-      error: error?.message || 'AI request failed.'
-    });
   }
+
+  res.status(502).json({
+    error: lastError
+  });
 };
