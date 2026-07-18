@@ -56,7 +56,7 @@ ${compactHistory(history)}
 Current BuyQK app context:
 ${contextText}
 
-Answer as BuyQK AI in clear, simple English only. Keep it short, practical, and professional.`;
+Answer as BuyQK AI in clear, simple English only. Give a complete helpful answer. Use short sections or bullet points when useful, but do not cut the response early.`;
 }
 
 function configuredModels() {
@@ -78,7 +78,7 @@ async function callGemini({ apiKey, model, prompt }) {
     body: JSON.stringify({
       systemInstruction: {
         parts: [{
-          text: 'You are BuyQK AI, a concise shopping assistant inside a local delivery app in India. Help users find products, build budget baskets, understand order status, and make practical purchase suggestions. Always reply in clear, simple English only. Do not claim a product is available unless it appears in the provided catalog context. Keep answers short and actionable.'
+          text: 'You are BuyQK AI, a helpful shopping assistant inside a local delivery app in India. Help users find products, build budget baskets, understand order status, and make practical purchase suggestions. Always reply in clear, simple English only. Do not claim a product is available unless it appears in the provided catalog context. Give complete, actionable answers without ending mid-thought.'
         }]
       },
       contents: [{
@@ -86,7 +86,7 @@ async function callGemini({ apiKey, model, prompt }) {
         parts: [{ text: prompt }]
       }],
       generationConfig: {
-        maxOutputTokens: 420,
+        maxOutputTokens: 1200,
         temperature: 0.7
       }
     })
