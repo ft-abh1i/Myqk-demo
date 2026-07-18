@@ -1,13 +1,32 @@
 .ai-view {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  min-height: 100%;
+  gap: 10px;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+body[data-secondary-tab="ai"] .app-main {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+body[data-secondary-tab="ai"] .secondary-topbar {
+  flex: 0 0 auto;
+}
+
+body[data-secondary-tab="ai"] .ai-view {
+  flex: 1 1 auto;
 }
 
 .ai-hero-card {
-  padding: 18px;
-  border-radius: 24px;
+  flex: 0 0 auto;
+  padding: 16px 18px;
+  border-radius: 0 0 24px 24px;
   background: linear-gradient(135deg, #111827 0%, #1f2937 60%, #334155 100%);
   color: #ffffff;
   box-shadow: 0 14px 34px rgba(17, 24, 39, 0.16);
@@ -27,24 +46,25 @@
 }
 
 .ai-hero-card h2 {
-  margin-top: 13px;
+  margin-top: 12px;
   font-size: 24px;
   line-height: 1.08;
   font-weight: 850;
 }
 
 .ai-hero-card p {
-  margin-top: 8px;
+  margin-top: 7px;
   color: rgba(255, 255, 255, 0.78);
   font-size: 13px;
-  line-height: 1.5;
+  line-height: 1.45;
 }
 
 .ai-quick-row {
+  flex: 0 0 auto;
   display: flex;
   gap: 8px;
   overflow-x: auto;
-  padding-bottom: 2px;
+  padding: 0 0 2px;
   scrollbar-width: none;
 }
 
@@ -65,22 +85,24 @@
 }
 
 .ai-chat-card {
-  min-height: 360px;
-  flex: 1;
+  flex: 1 1 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   border: 1px solid var(--border);
-  border-radius: 24px;
+  border-radius: 24px 24px 0 0;
   background: #ffffff;
   box-shadow: var(--shadow-sm);
 }
 
 .ai-messages {
-  flex: 1;
+  flex: 1 1 auto;
   min-height: 0;
   padding: 14px;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -127,7 +149,8 @@
 }
 
 .ai-form {
-  padding: 10px;
+  flex: 0 0 auto;
+  padding: 10px 10px calc(10px + env(safe-area-inset-bottom));
   display: flex;
   gap: 8px;
   border-top: 1px solid var(--border);
@@ -161,9 +184,34 @@
   opacity: 0.55;
 }
 
+@media (max-height: 720px) {
+  .ai-view {
+    gap: 8px;
+  }
+
+  .ai-hero-card {
+    padding: 13px 16px;
+  }
+
+  .ai-hero-card h2 {
+    margin-top: 9px;
+    font-size: 21px;
+  }
+
+  .ai-hero-card p {
+    font-size: 12px;
+    line-height: 1.35;
+  }
+
+  .ai-quick-row button {
+    padding: 8px 11px;
+    font-size: 11.5px;
+  }
+}
+
 @media (max-width: 360px) {
   .ai-hero-card h2 {
-    font-size: 21px;
+    font-size: 20px;
   }
 
   .ai-message {
