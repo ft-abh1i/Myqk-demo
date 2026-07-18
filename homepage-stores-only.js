@@ -27,6 +27,19 @@
         <article class="grocery-category-card">
           <div class="grocery-category-image">
             <img
+              src="/assets/atta-rice-dal-optimized.webp"
+              alt="Atta, Rice and Dal"
+              width="512"
+              height="512"
+              loading="lazy"
+              decoding="async"
+            >
+          </div>
+          <span class="grocery-category-label">Atta, Rice &amp; Dal</span>
+        </article>
+        <article class="grocery-category-card">
+          <div class="grocery-category-image">
+            <img
               src="/assets/dairy-bread-eggs-transparent.webp"
               alt="Dairy, Bread and Eggs"
               width="1024"
