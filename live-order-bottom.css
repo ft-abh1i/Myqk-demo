@@ -1,0 +1,46 @@
+/* Customer live-order status: keep it directly above the bottom navigation. */
+body:not(.secondary-tab-active) #liveOrderBanner:not(.hidden) {
+  position: absolute !important;
+  left: 14px !important;
+  right: 14px !important;
+  bottom: calc(76px + env(safe-area-inset-bottom)) !important;
+  z-index: 29 !important;
+  width: auto !important;
+  margin: 0 !important;
+  border-radius: 18px !important;
+  box-shadow: 0 14px 34px rgba(6, 26, 59, .24) !important;
+  animation: liveOrderBottomIn .2s ease-out;
+}
+
+body:not(.secondary-tab-active) #liveOrderBanner:not(.hidden) > button {
+  width: 100% !important;
+  min-height: 76px;
+}
+
+/* Keep the final homepage content reachable behind the floating order status. */
+body:not(.secondary-tab-active) #liveOrderBanner:not(.hidden) + #appMain {
+  padding-bottom: calc(174px + env(safe-area-inset-bottom)) !important;
+}
+
+@keyframes liveOrderBottomIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 390px) {
+  body:not(.secondary-tab-active) #liveOrderBanner:not(.hidden) {
+    left: 10px !important;
+    right: 10px !important;
+    bottom: calc(70px + env(safe-area-inset-bottom)) !important;
+  }
+
+  body:not(.secondary-tab-active) #liveOrderBanner:not(.hidden) > button {
+    min-height: 70px;
+  }
+}
