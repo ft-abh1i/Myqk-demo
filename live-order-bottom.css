@@ -64,14 +64,36 @@ body:not(.secondary-tab-active) #liveOrderBanner .live-order-close {
   height: 25px !important;
   min-height: 25px !important;
   padding: 0 !important;
-  display: grid !important;
-  place-items: center !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  overflow: hidden !important;
   border-radius: 999px !important;
   background: rgba(255, 255, 255, .13) !important;
-  color: #ffffff !important;
-  font-size: 18px !important;
-  font-weight: 400 !important;
-  line-height: 1 !important;
+  color: transparent !important;
+  font-size: 0 !important;
+  line-height: 0 !important;
+}
+
+body:not(.secondary-tab-active) #liveOrderBanner .live-order-close::before,
+body:not(.secondary-tab-active) #liveOrderBanner .live-order-close::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 11px;
+  height: 1.8px;
+  border-radius: 999px;
+  background: #ffffff;
+  transform-origin: center;
+}
+
+body:not(.secondary-tab-active) #liveOrderBanner .live-order-close::before {
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+body:not(.secondary-tab-active) #liveOrderBanner .live-order-close::after {
+  transform: translate(-50%, -50%) rotate(-45deg);
 }
 
 body:not(.secondary-tab-active) #liveOrderBanner .live-order-close:active {
