@@ -25,20 +25,31 @@
       }
 
       .qk-map-picker-foot {
-        padding-bottom: 12px !important;
+        min-height: 0 !important;
+        padding-bottom: calc(86px + env(safe-area-inset-bottom)) !important;
       }
 
       .qk-map-confirm-bar {
-        flex: 0 0 auto;
-        padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
-        border-top: 1px solid var(--border, #e7ece8);
-        background: #ffffff;
-        box-shadow: 0 -8px 22px rgba(22, 38, 31, .08);
+        flex: 0 0 0 !important;
+        width: 0 !important;
+        height: 0 !important;
+        min-height: 0 !important;
+        padding: 0 !important;
+        border: 0 !important;
+        box-shadow: none !important;
       }
 
-      .qk-map-confirm-bar .qk-confirm-map {
-        width: 100%;
-        margin: 0;
+      .qk-map-picker.open #qkConfirmMapLocation {
+        position: fixed !important;
+        left: 50% !important;
+        right: auto !important;
+        bottom: calc(10px + env(safe-area-inset-bottom)) !important;
+        z-index: 1400 !important;
+        width: min(calc(100vw - 28px), 532px) !important;
+        min-height: 52px !important;
+        margin: 0 !important;
+        transform: translateX(-50%) !important;
+        box-shadow: 0 8px 24px rgba(22, 38, 31, .22) !important;
       }
 
       @media (max-height: 720px) {
@@ -46,9 +57,13 @@
           min-height: 58px !important;
         }
 
-        .qk-map-confirm-bar {
-          padding-top: 8px;
-          padding-bottom: calc(8px + env(safe-area-inset-bottom));
+        .qk-map-picker-foot {
+          padding-bottom: calc(82px + env(safe-area-inset-bottom)) !important;
+        }
+
+        .qk-map-picker.open #qkConfirmMapLocation {
+          min-height: 48px !important;
+          bottom: calc(8px + env(safe-area-inset-bottom)) !important;
         }
       }
     `;
@@ -57,24 +72,11 @@
 
   function polishPicker() {
     const picker = byId('qkMapPicker');
-    const shell = picker?.querySelector('.qk-map-picker-shell');
     const confirmButton = byId('qkConfirmMapLocation');
-    if (!picker || !shell || !confirmButton) return false;
+    if (!picker || !confirmButton) return false;
 
     picker.querySelector('.qk-map-picker-head p')?.remove();
-
-    let confirmBar = byId('qkMapConfirmBar');
-    if (!confirmBar) {
-      confirmBar = document.createElement('div');
-      confirmBar.id = 'qkMapConfirmBar';
-      confirmBar.className = 'qk-map-confirm-bar';
-      shell.appendChild(confirmBar);
-    }
-
-    if (confirmButton.parentElement !== confirmBar) {
-      confirmBar.appendChild(confirmButton);
-    }
-
+    confirmButton.setAttribute('aria-label', 'Confirm delivery location');
     return true;
   }
 
