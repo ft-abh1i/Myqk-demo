@@ -16,7 +16,7 @@
       }
 
       .qk-map-picker-head {
-        min-height: 66px !important;
+        min-height: 62px !important;
       }
 
       .qk-map-picker-head > div {
@@ -25,45 +25,33 @@
       }
 
       .qk-map-picker-foot {
+        flex: 0 1 auto !important;
         min-height: 0 !important;
-        padding-bottom: calc(86px + env(safe-area-inset-bottom)) !important;
-      }
-
-      .qk-map-confirm-bar {
-        flex: 0 0 0 !important;
-        width: 0 !important;
-        height: 0 !important;
-        min-height: 0 !important;
-        padding: 0 !important;
-        border: 0 !important;
-        box-shadow: none !important;
+        max-height: min(55dvh, 390px) !important;
+        padding-bottom: calc(10px + env(safe-area-inset-bottom)) !important;
       }
 
       .qk-map-picker.open #qkConfirmMapLocation {
-        position: fixed !important;
-        left: 50% !important;
-        right: auto !important;
-        bottom: calc(10px + env(safe-area-inset-bottom)) !important;
-        z-index: 1400 !important;
-        width: min(calc(100vw - 28px), 532px) !important;
-        min-height: 52px !important;
+        position: static !important;
+        width: 100% !important;
+        min-height: 46px !important;
         margin: 0 !important;
-        transform: translateX(-50%) !important;
-        box-shadow: 0 8px 24px rgba(22, 38, 31, .22) !important;
+        transform: none !important;
+        box-shadow: 0 6px 16px rgba(31, 122, 77, .16) !important;
       }
 
       @media (max-height: 720px) {
         .qk-map-picker-head {
-          min-height: 58px !important;
+          min-height: 54px !important;
         }
 
         .qk-map-picker-foot {
-          padding-bottom: calc(82px + env(safe-area-inset-bottom)) !important;
+          max-height: 58dvh !important;
+          padding-bottom: calc(8px + env(safe-area-inset-bottom)) !important;
         }
 
         .qk-map-picker.open #qkConfirmMapLocation {
-          min-height: 48px !important;
-          bottom: calc(8px + env(safe-area-inset-bottom)) !important;
+          min-height: 44px !important;
         }
       }
     `;

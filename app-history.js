@@ -104,7 +104,7 @@
 })();
 
 (() => {
-  const PICKER_VERSION = '20260719-openstreetmap-fixed-confirm-5';
+  const PICKER_VERSION = '20260719-map-form-fit-6';
 
   function loadPolishScript() {
     if (document.querySelector('script[src^="location-map-ui-polish.js"]')) return;

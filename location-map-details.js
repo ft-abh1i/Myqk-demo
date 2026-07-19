@@ -46,34 +46,35 @@
       }
 
       .qk-map-address-fields {
-        margin-top: 10px;
+        margin-top: 8px;
         display: grid;
-        gap: 9px;
+        gap: 6px;
       }
 
       .qk-map-address-field {
         display: grid;
-        gap: 5px;
+        gap: 3px;
       }
 
       .qk-map-address-field > span {
         color: var(--soft, #6b7a72);
-        font-size: 10.5px;
+        font-size: 9.5px;
         font-weight: 800;
+        line-height: 1.2;
         letter-spacing: .02em;
       }
 
       .qk-map-address-field input {
         width: 100%;
-        min-height: 44px;
-        padding: 0 12px;
+        min-height: 40px;
+        padding: 0 11px;
         border: 1px solid var(--border, #e7ece8);
-        border-radius: 13px;
+        border-radius: 11px;
         outline: 0;
         background: #ffffff;
         color: var(--ink, #16261f);
         font: inherit;
-        font-size: 13px;
+        font-size: 12.5px;
         -webkit-user-select: text;
         user-select: text;
       }
@@ -88,18 +89,26 @@
       }
 
       .qk-map-picker-foot {
-        max-height: 55dvh;
+        flex: 0 1 auto;
+        min-height: 0;
+        max-height: min(55dvh, 390px);
         overflow-y: auto;
+        overscroll-behavior: contain;
         -webkit-overflow-scrolling: touch;
       }
 
       @media (max-height: 720px) {
         .qk-map-address-fields {
-          gap: 7px;
+          margin-top: 7px;
+          gap: 5px;
         }
 
         .qk-map-address-field input {
-          min-height: 40px;
+          min-height: 38px;
+        }
+
+        .qk-map-picker-foot {
+          max-height: 58dvh;
         }
       }
     `;
