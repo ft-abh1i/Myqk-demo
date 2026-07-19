@@ -140,14 +140,61 @@ function getProducts(context) {
   if (!Array.isArray(products)) return [];
   return products
     .map((product) => ({
+      id: String(product?.id || '').trim(),
       name: normalizeMessage(product?.name),
       brand: normalizeMessage(product?.brand),
       unit: normalizeMessage(product?.unit),
       category: normalizeMessage(product?.category),
       price: Number(product?.price || 0),
-      storeId: product?.storeId || null
+      storeId: product?.storeId || null,
+      available: product?.available !== false
     }))
-    .filter((product) => product.name && Number.isFinite(product.price) && product.price > 0);
+    .filter((product) => product.available
+      && product.name
+      && Number.isFinite(product.price)
+      && product.price > 0);
+}
+
+function recommendationMatchText(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+function extractRecommendations(reply, context) {
+  const replyText = ` ${recommendationMatchText(reply)} `;
+  if (!replyText.trim()) return [];
+
+  const matches = [];
+  const storeMatches = new Map();
+  for (const product of getProducts(context)) {
+    if (!product.id || !product.storeId) continue;
+    const productName = recommendationMatchText(product.name);
+    if (!productName) continue;
+    if (!replyText.includes(` ${productName} `)) continue;
+    matches.push({ product, productName });
+    if (!storeMatches.has(product.storeId)) storeMatches.set(product.storeId, new Set());
+    storeMatches.get(product.storeId).add(productName);
+  }
+
+  const preferredStoreId = [...storeMatches.entries()]
+    .sort((a, b) => b[1].size - a[1].size)[0]?.[0];
+  if (!preferredStoreId) return [];
+
+  const recommendations = [];
+  const seenNames = new Set();
+  for (const { product, productName } of matches) {
+    if (product.storeId !== preferredStoreId || seenNames.has(productName)) continue;
+    seenNames.add(productName);
+    recommendations.push({
+      id: product.id,
+      storeId: product.storeId,
+      name: product.name
+    });
+    if (recommendations.length >= 6) break;
+  }
+  return recommendations;
 }
 
 function localAppAnswer(message, context) {
@@ -221,17 +268,40 @@ function buildBasketFallback(message, context) {
     .filter((entry) => !terms.length || entry.score > 0)
     .sort((a, b) => b.score - a.score || a.product.price - b.product.price);
 
-  const candidates = ranked.length ? ranked.map((entry) => entry.product) : products.sort((a, b) => a.price - b.price);
-  const selected = [];
-  let total = 0;
+  const candidateEntries = ranked.length
+    ? ranked
+    : products
+      .slice()
+      .sort((a, b) => a.price - b.price)
+      .map((product) => ({ product, score: 0 }));
+  const candidates = candidateEntries.map((entry) => entry.product);
   const limit = budget > 0 ? budget : Number.POSITIVE_INFINITY;
+  const groupedByStore = new Map();
+  candidateEntries.forEach((entry) => {
+    const storeId = entry.product.storeId || '__unknown_store__';
+    if (!groupedByStore.has(storeId)) groupedByStore.set(storeId, []);
+    groupedByStore.get(storeId).push(entry);
+  });
 
-  for (const product of candidates) {
-    if (selected.length >= 6) break;
-    if (total + product.price > limit) continue;
-    selected.push(product);
-    total += product.price;
-  }
+  const baskets = [...groupedByStore.values()].map((entries) => {
+    const selected = [];
+    let total = 0;
+    let score = 0;
+    for (const entry of entries) {
+      if (selected.length >= 6) break;
+      if (total + entry.product.price > limit) continue;
+      selected.push(entry.product);
+      total += entry.product.price;
+      score += entry.score;
+    }
+    return { selected, total, score };
+  }).filter((basket) => basket.selected.length);
+
+  baskets.sort((a, b) => b.score - a.score
+    || b.selected.length - a.selected.length
+    || b.total - a.total);
+  const selected = baskets[0]?.selected || [];
+  const total = baskets[0]?.total || 0;
 
   if (!selected.length) {
     const cheapest = candidates[0];
@@ -269,10 +339,11 @@ Rules:
 1. Answer only about BuyQK shopping, products, prices, budget baskets, cart, orders, delivery, tracking, or app usage.
 2. Do not answer unrelated school, grammar, coding, entertainment, or general-knowledge questions. For those, briefly explain your BuyQK scope.
 3. Use live catalog product names and prices when they are present in the app data. Never invent an item as currently available.
-4. For a budget basket, show useful items, each price, an estimated total, and keep the total at or below the requested budget.
+4. For a budget basket, use products from one store only, show each price and an estimated total, and keep the total at or below the requested budget.
 5. For app instructions, give complete numbered steps.
 6. Use clear, simple English. Do not use Markdown bold markers, headings with #, code fences, or unfinished fragments.
 7. Return ONLY valid JSON in this exact shape: {"reply":"your complete answer"}.
+8. Whenever you recommend a live product, copy its exact catalog name so the app can show its Add to cart card.
 ${retry ? '\nThe previous output was malformed or incomplete. Rebuild the answer fully and verify the final JSON before returning it.' : ''}`;
 }
 
@@ -354,7 +425,8 @@ module.exports = async function handler(req, res) {
     res.status(200).json({
       model: 'buyqk-scope-guard',
       reply: 'I am BuyQK’s shopping assistant. I can help with products, budget baskets, your cart, orders, delivery tracking, and how to use the app.',
-      finishReason: 'LOCAL_GUARDRAIL'
+      finishReason: 'LOCAL_GUARDRAIL',
+      recommendations: []
     });
     return;
   }
@@ -364,7 +436,8 @@ module.exports = async function handler(req, res) {
     res.status(200).json({
       model: 'buyqk-app-guide',
       reply: appAnswer,
-      finishReason: 'LOCAL_APP_ANSWER'
+      finishReason: 'LOCAL_APP_ANSWER',
+      recommendations: []
     });
     return;
   }
@@ -421,7 +494,8 @@ module.exports = async function handler(req, res) {
       res.status(200).json({
         model,
         reply,
-        finishReason
+        finishReason,
+        recommendations: extractRecommendations(reply, context)
       });
       return;
     } catch (error) {
@@ -429,10 +503,12 @@ module.exports = async function handler(req, res) {
     }
   }
 
+  const fallbackReply = buildFallback(message, context);
   res.status(200).json({
     model: 'buyqk-local-fallback',
-    reply: buildFallback(message, context),
+    reply: fallbackReply,
     finishReason: 'PROVIDER_UNAVAILABLE',
-    providerError: lastError
+    providerError: lastError,
+    recommendations: extractRecommendations(fallbackReply, context)
   });
 };

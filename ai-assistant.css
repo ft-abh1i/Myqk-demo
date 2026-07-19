@@ -148,6 +148,243 @@ body[data-secondary-tab="ai"] .ai-view {
   border-bottom-right-radius: 6px;
 }
 
+.ai-message.has-products {
+  width: 100%;
+  max-width: 100%;
+  padding: 0;
+  overflow: visible;
+  background: transparent;
+  white-space: normal;
+}
+
+.ai-message.has-products .ai-message-copy {
+  width: fit-content;
+  max-width: 84%;
+  padding: 10px 12px;
+  border-radius: 18px 18px 18px 6px;
+  background: var(--surface);
+  white-space: pre-wrap;
+}
+
+.ai-recommendations {
+  width: 100%;
+  margin-top: 10px;
+  padding: 11px 0 4px;
+  overflow: hidden;
+  border: 1px solid rgba(28, 85, 55, .09);
+  border-radius: 18px;
+  background: linear-gradient(145deg, #f8fbf9, #eef7f1);
+  box-shadow: 0 5px 16px rgba(24, 76, 49, .07);
+}
+
+.ai-recommendation-head {
+  padding: 0 11px 9px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ai-recommendation-head > span {
+  width: 29px;
+  height: 29px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: #173d2b;
+  color: #f8cb46;
+}
+
+.ai-recommendation-head svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.ai-recommendation-head strong,
+.ai-recommendation-head small {
+  display: block;
+}
+
+.ai-recommendation-head strong {
+  color: #173d2b;
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.ai-recommendation-head small {
+  margin-top: 1px;
+  color: #738279;
+  font-size: 8.5px;
+}
+
+.ai-product-row {
+  padding: 0 10px 7px;
+  display: flex;
+  gap: 9px;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.ai-product-row::-webkit-scrollbar {
+  display: none;
+}
+
+.ai-product-card {
+  position: relative;
+  flex: 0 0 154px;
+  min-width: 0;
+  overflow: hidden;
+  scroll-snap-align: start;
+  border: 1px solid rgba(22, 61, 43, .09);
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 4px 12px rgba(22, 61, 43, .07);
+}
+
+.ai-product-image {
+  position: relative;
+  height: 92px;
+  padding: 8px;
+  overflow: hidden;
+  background: linear-gradient(145deg, #f8faf9, #edf3ef);
+}
+
+.ai-product-image img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+  mix-blend-mode: multiply;
+}
+
+.ai-product-image > span {
+  position: absolute;
+  top: 7px;
+  left: 7px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  background: rgba(23, 61, 43, .92);
+  color: #f8cb46;
+  font-size: 6.5px;
+  font-weight: 900;
+  letter-spacing: .45px;
+}
+
+.ai-product-info {
+  padding: 9px;
+}
+
+.ai-product-info > small {
+  display: block;
+  overflow: hidden;
+  color: #238052;
+  font-size: 7px;
+  font-weight: 850;
+  letter-spacing: .18px;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.ai-product-info > strong {
+  min-height: 30px;
+  margin-top: 4px;
+  overflow: hidden;
+  display: -webkit-box;
+  color: #18281f;
+  font-size: 11px;
+  font-weight: 850;
+  line-height: 1.32;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.ai-product-info > p {
+  margin: 3px 0 0;
+  overflow: hidden;
+  color: #7c8981;
+  font-size: 8px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ai-product-footer {
+  min-height: 30px;
+  margin-top: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.ai-product-footer > b {
+  color: #17261e;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.ai-product-add {
+  min-width: 58px;
+  height: 30px;
+  padding: 0 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid #1f7a4d;
+  border-radius: 9px;
+  background: #eff9f2;
+  color: #1f7a4d;
+  font-size: 9px;
+  font-weight: 900;
+}
+
+.ai-product-add b {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.ai-product-add:active,
+.ai-product-quantity button:active {
+  transform: scale(.94);
+}
+
+.ai-product-quantity {
+  height: 30px;
+  min-width: 70px;
+  display: grid;
+  grid-template-columns: 25px minmax(20px, 1fr) 25px;
+  align-items: center;
+  overflow: hidden;
+  border-radius: 9px;
+  background: #1f7a4d;
+  color: #ffffff;
+}
+
+.ai-product-quantity button {
+  height: 100%;
+  display: grid;
+  place-items: center;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.ai-product-quantity strong {
+  text-align: center;
+  font-size: 10px;
+  font-weight: 900;
+}
+
 .ai-form {
   flex: 0 0 auto;
   padding: 10px 10px calc(10px + env(safe-area-inset-bottom));

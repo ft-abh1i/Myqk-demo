@@ -22,7 +22,7 @@ function ensureAiStylesheet() {
   if (document.querySelector('link[href^="ai-assistant.css"]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = 'ai-assistant.css?v=20260719-keyboard-1';
+  link.href = 'ai-assistant.css?v=20260719-ai-cart-1';
   document.head.appendChild(link);
 }
 
@@ -141,9 +141,132 @@ function normalizeAiText(value) {
     .trim();
 }
 
+function aiProductMatchText(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+function currentAiProducts() {
+  const catalog = Array.isArray(window.products)
+    ? window.products
+    : (typeof products !== 'undefined' && Array.isArray(products) ? products : []);
+  return catalog.filter((product) => product
+    && product.key
+    && product.storeId
+    && Number(product.price || 0) > 0
+    && Number(product.stockQuantity || 0) > 0);
+}
+
+function recommendedProductsForMessage(message, content) {
+  if (message.role !== 'assistant' || content === 'Thinking…') return [];
+  const catalog = currentAiProducts();
+  if (!catalog.length) return [];
+
+  const chosen = [];
+  const chosenKeys = new Set();
+  const chosenNames = new Set();
+  const references = Array.isArray(message.recommendations) ? message.recommendations : [];
+  references.forEach((reference) => {
+    const product = catalog.find((item) => String(item.id) === String(reference?.id || '')
+      && String(item.storeId) === String(reference?.storeId || ''));
+    if (!product || chosenKeys.has(product.key)) return;
+    chosenKeys.add(product.key);
+    chosenNames.add(aiProductMatchText(product.name));
+    chosen.push(product);
+  });
+
+  const replyText = ` ${aiProductMatchText(content)} `;
+  const textMatches = catalog.map((product) => ({
+    product,
+    productName: aiProductMatchText(product.name)
+  })).filter(({ productName }) => productName && replyText.includes(` ${productName} `));
+  const matchCountByStore = new Map();
+  textMatches.forEach(({ product, productName }) => {
+    if (!matchCountByStore.has(product.storeId)) matchCountByStore.set(product.storeId, new Set());
+    matchCountByStore.get(product.storeId).add(productName);
+  });
+  const preferredStoreId = chosen[0]?.storeId || [...matchCountByStore.entries()]
+    .sort((a, b) => b[1].size - a[1].size)[0]?.[0];
+
+  textMatches.forEach(({ product, productName }) => {
+    if (chosen.length >= 6 || chosenKeys.has(product.key)) return;
+    if (product.storeId !== preferredStoreId || chosenNames.has(productName)) return;
+    chosenKeys.add(product.key);
+    chosenNames.add(productName);
+    chosen.push(product);
+  });
+  return chosen.slice(0, 6);
+}
+
+function aiStoreName(storeId) {
+  const catalogStores = Array.isArray(window.stores)
+    ? window.stores
+    : (typeof stores !== 'undefined' && Array.isArray(stores) ? stores : []);
+  return catalogStores.find((store) => store.id === storeId)?.name || 'BuyQK Store';
+}
+
+function aiProductImage(product) {
+  if (product.image) return product.image;
+  if (typeof placeholderImage === 'function') return placeholderImage(product.name || 'Product', 'product');
+  return '';
+}
+
+function aiProductCartControl(product) {
+  const quantity = Number(
+    typeof state !== 'undefined' && state.cart?.[product.key]?.quantity
+      ? state.cart[product.key].quantity
+      : 0
+  );
+  const key = escapeHtml(product.key);
+  const name = escapeHtml(product.name || 'product');
+  if (quantity > 0) {
+    return `<div class="ai-product-quantity" aria-label="${name} quantity ${quantity}">
+      <button type="button" data-cart-change="${key}" data-ai-cart-change data-delta="-1" aria-label="Remove one ${name}">−</button>
+      <strong>${quantity}</strong>
+      <button type="button" data-cart-change="${key}" data-ai-cart-change data-delta="1" aria-label="Add one more ${name}">+</button>
+    </div>`;
+  }
+  return `<button class="ai-product-add" type="button" data-add="${key}" data-ai-add aria-label="Add ${name} to cart">
+    <span>ADD</span><b>+</b>
+  </button>`;
+}
+
+function aiProductCardMarkup(product) {
+  const detail = [product.brand, product.unit].filter(Boolean).join(' · ') || 'Available now';
+  const price = typeof money === 'function' ? money(product.price) : `₹${Math.round(Number(product.price || 0))}`;
+  return `<article class="ai-product-card">
+    <div class="ai-product-image">
+      <img src="${escapeHtml(aiProductImage(product))}" alt="${escapeHtml(product.name)}" loading="lazy">
+      <span>AI PICK</span>
+    </div>
+    <div class="ai-product-info">
+      <small>${escapeHtml(aiStoreName(product.storeId))}</small>
+      <strong>${escapeHtml(product.name)}</strong>
+      <p>${escapeHtml(detail)}</p>
+      <div class="ai-product-footer"><b>${escapeHtml(price)}</b>${aiProductCartControl(product)}</div>
+    </div>
+  </article>`;
+}
+
+function aiRecommendationsMarkup(productsToShow) {
+  if (!productsToShow.length) return '';
+  return `<section class="ai-recommendations" aria-label="Recommended products">
+    <div class="ai-recommendation-head">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3l1.8 4.8L18.5 10l-4.7 2.2L12 17l-1.8-4.8L5.5 10l4.7-2.2L12 3Z"></path></svg></span>
+      <div><strong>Recommended products</strong><small>Add directly to your cart</small></div>
+    </div>
+    <div class="ai-product-row">${productsToShow.map(aiProductCardMarkup).join('')}</div>
+  </section>`;
+}
+
 function aiMessageMarkup(message) {
   const content = normalizeAiText(message.content) || 'I could not generate a response. Please try again.';
-  return `<div class="ai-message ${message.role === 'user' ? 'user' : 'assistant'}"><div>${escapeHtml(content)}</div></div>`;
+  const role = message.role === 'user' ? 'user' : 'assistant';
+  const recommendations = recommendedProductsForMessage(message, content);
+  const productClass = recommendations.length ? ' has-products' : '';
+  return `<div class="ai-message ${role}${productClass}"><div class="ai-message-copy">${escapeHtml(content)}</div>${aiRecommendationsMarkup(recommendations)}</div>`;
 }
 
 function renderAiMessages() {
@@ -255,7 +378,8 @@ async function askBuyQkAi(text) {
 
     aiMessages[aiMessages.length - 1] = {
       role: 'assistant',
-      content: reply
+      content: reply,
+      recommendations: Array.isArray(data.recommendations) ? data.recommendations.slice(0, 6) : []
     };
   } catch (error) {
     const messageText = error?.message || '';
@@ -349,6 +473,14 @@ document.addEventListener('focusout', (event) => {
 });
 
 document.addEventListener('click', (event) => {
+  const aiCartControl = event.target.closest('[data-ai-add], [data-ai-cart-change]');
+  if (aiCartControl) {
+    window.requestAnimationFrame(() => {
+      if (typeof state !== 'undefined' && state.activeTab === 'ai') renderAiMessages();
+    });
+    return;
+  }
+
   const quickPrompt = event.target.closest('[data-ai-prompt]');
   if (quickPrompt && !quickPrompt.disabled) {
     askBuyQkAi(quickPrompt.dataset.aiPrompt || quickPrompt.textContent || '');
