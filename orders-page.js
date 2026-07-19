@@ -576,6 +576,14 @@
     renderOrders();
   });
 
+  document.addEventListener('qk:openorderdetails', (event) => {
+    const orderId = String(event.detail?.orderId || '');
+    if (!orderId || !state.orders.some((order) => order.id === orderId)) return;
+    selectedOrderId = orderId;
+    if (state.activeTab === 'orders') renderOrders();
+    else switchTab('orders');
+  });
+
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') closeCancelSheet();
   });
