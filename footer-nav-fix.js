@@ -16,12 +16,13 @@ const aiQuickPrompts = [
   'Suggest snacks on a budget'
 ];
 let aiRequestInFlight = false;
+let aiViewportBaseline = 0;
 
 function ensureAiStylesheet() {
   if (document.querySelector('link[href^="ai-assistant.css"]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = 'ai-assistant.css?v=20260718-ai-fixed-results-1';
+  link.href = 'ai-assistant.css?v=20260719-keyboard-1';
   document.head.appendChild(link);
 }
 
@@ -159,6 +160,41 @@ function renderAiMessages() {
   box.scrollTop = box.scrollHeight;
 }
 
+function resizeAiInput(input) {
+  if (!input) return;
+  input.style.height = '42px';
+  input.style.height = `${Math.min(Math.max(input.scrollHeight, 42), 84)}px`;
+}
+
+function currentAiViewportHeight() {
+  return Math.round(window.visualViewport?.height || window.innerHeight || document.documentElement.clientHeight);
+}
+
+function syncAiKeyboardLayout() {
+  const input = document.getElementById('aiInput');
+  const focused = Boolean(input && document.activeElement === input);
+  const viewportHeight = currentAiViewportHeight();
+
+  if (!focused && viewportHeight > aiViewportBaseline) aiViewportBaseline = viewportHeight;
+  if (!aiViewportBaseline) aiViewportBaseline = viewportHeight;
+
+  const heightLoss = Math.max(0, aiViewportBaseline - viewportHeight);
+  document.documentElement.style.setProperty('--qk-ai-viewport-height', `${viewportHeight}px`);
+  document.body.classList.toggle('qk-ai-input-focused', focused);
+  document.body.classList.toggle('qk-ai-keyboard-open', focused && heightLoss > 100);
+
+  if (focused) {
+    window.requestAnimationFrame(() => {
+      document.getElementById('aiMessages')?.scrollTo({ top: document.getElementById('aiMessages')?.scrollHeight || 0 });
+    });
+  }
+}
+
+function clearAiKeyboardLayout() {
+  document.body.classList.remove('qk-ai-input-focused', 'qk-ai-keyboard-open');
+  document.documentElement.style.removeProperty('--qk-ai-viewport-height');
+}
+
 function setAiBusy(busy) {
   aiRequestInFlight = busy;
   const sendButton = document.getElementById('aiSend');
@@ -178,14 +214,16 @@ function renderAiAssistant() {
     </div>
     <section class="ai-chat-card" aria-label="BuyQK AI chat">
       <div class="ai-messages" id="aiMessages"></div>
-      <form class="ai-form" id="aiForm">
-        <input id="aiInput" type="text" maxlength="240" autocomplete="off" placeholder="Ask BuyQK AI...">
+      <form class="ai-form" id="aiForm" autocomplete="off" novalidate>
+        <textarea id="aiInput" name="buyqk_chat_query" rows="1" maxlength="240" autocomplete="off" autocorrect="on" autocapitalize="sentences" spellcheck="true" enterkeyhint="send" inputmode="text" aria-label="Ask BuyQK AI" placeholder="Ask BuyQK AI..." data-lpignore="true" data-1p-ignore="true"></textarea>
         <button id="aiSend" type="submit">Send</button>
       </form>
     </section>
   </div>`;
   renderAiMessages();
   setAiBusy(aiRequestInFlight);
+  resizeAiInput(document.getElementById('aiInput'));
+  syncAiKeyboardLayout();
 }
 
 async function askBuyQkAi(text) {
@@ -230,7 +268,12 @@ async function askBuyQkAi(text) {
   } finally {
     setAiBusy(false);
     renderAiMessages();
-    document.getElementById('aiInput')?.focus();
+    const input = document.getElementById('aiInput');
+    if (input) {
+      input.focus({ preventScroll: true });
+      resizeAiInput(input);
+    }
+    syncAiKeyboardLayout();
   }
 }
 
@@ -244,6 +287,7 @@ function installAiTabRenderer() {
       return;
     }
 
+    clearAiKeyboardLayout();
     return originalRenderMain();
   };
   renderMain.qkAiWrapped = true;
@@ -270,8 +314,38 @@ document.addEventListener('submit', (event) => {
   event.preventDefault();
   const input = document.getElementById('aiInput');
   const value = input?.value || '';
-  if (input) input.value = '';
+  if (input) {
+    input.value = '';
+    resizeAiInput(input);
+  }
   askBuyQkAi(value);
+});
+
+document.addEventListener('keydown', (event) => {
+  if (event.target?.id !== 'aiInput') return;
+  if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
+    event.preventDefault();
+    event.target.form?.requestSubmit();
+  }
+});
+
+document.addEventListener('input', (event) => {
+  if (event.target?.id === 'aiInput') resizeAiInput(event.target);
+});
+
+document.addEventListener('focusin', (event) => {
+  if (event.target?.id !== 'aiInput') return;
+  aiViewportBaseline = Math.max(aiViewportBaseline, currentAiViewportHeight());
+  document.body.classList.add('qk-ai-input-focused');
+  window.setTimeout(syncAiKeyboardLayout, 50);
+  window.setTimeout(syncAiKeyboardLayout, 250);
+});
+
+document.addEventListener('focusout', (event) => {
+  if (event.target?.id !== 'aiInput') return;
+  window.setTimeout(() => {
+    if (document.activeElement?.id !== 'aiInput') clearAiKeyboardLayout();
+  }, 100);
 });
 
 document.addEventListener('click', (event) => {
@@ -281,10 +355,15 @@ document.addEventListener('click', (event) => {
   }
 });
 
+window.visualViewport?.addEventListener('resize', syncAiKeyboardLayout);
+window.visualViewport?.addEventListener('scroll', syncAiKeyboardLayout);
+window.addEventListener('resize', syncAiKeyboardLayout);
+
 document.addEventListener('DOMContentLoaded', () => {
   ensureAiStylesheet();
   ensureAiNavTab();
   installAiTabRenderer();
+  aiViewportBaseline = currentAiViewportHeight();
 
   const nav = document.getElementById('bottomNav');
   if (nav) {
