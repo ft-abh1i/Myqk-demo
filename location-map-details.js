@@ -1,10 +1,12 @@
 'use strict';
 
 (() => {
+  const HOUSE_KEY = 'qkMapHouseOrFlat';
   const STREET_KEY = 'qkMapStreetOrArea';
   const LANDMARK_KEY = 'qkMapLandmark';
   let observer = null;
   let statusObserver = null;
+  let pendingDetails = null;
 
   function byId(id) {
     return document.getElementById(id);
@@ -86,7 +88,7 @@
       }
 
       .qk-map-picker-foot {
-        max-height: 47dvh;
+        max-height: 55dvh;
         overflow-y: auto;
         -webkit-overflow-scrolling: touch;
       }
@@ -145,8 +147,12 @@
       selectedAddress.closest('.qk-selected-address')?.insertAdjacentHTML('afterend', `
         <div id="qkMapAddressFields" class="qk-map-address-fields">
           <label class="qk-map-address-field">
+            <span>HOUSE / FLAT / FLOOR *</span>
+            <input id="qkMapHouseInput" type="text" maxlength="100" autocomplete="address-line1" placeholder="Example: Flat 302, 3rd floor">
+          </label>
+          <label class="qk-map-address-field">
             <span>STREET / ROAD / AREA *</span>
-            <input id="qkMapStreetInput" type="text" maxlength="120" autocomplete="street-address" placeholder="Example: Station Road or Ward 4">
+            <input id="qkMapStreetInput" type="text" maxlength="120" autocomplete="address-line2" placeholder="Example: Station Road or Ward 4">
           </label>
           <label class="qk-map-address-field">
             <span>NEARBY LANDMARK (OPTIONAL)</span>
@@ -154,16 +160,15 @@
           </label>
         </div>`);
 
+      const houseInput = byId('qkMapHouseInput');
       const streetInput = byId('qkMapStreetInput');
       const landmarkInput = byId('qkMapLandmarkInput');
+      houseInput.value = localStorage.getItem(HOUSE_KEY) || '';
       streetInput.value = localStorage.getItem(STREET_KEY) || '';
       landmarkInput.value = localStorage.getItem(LANDMARK_KEY) || '';
 
       streetInput.addEventListener('input', () => {
         streetInput.dataset.touched = 'true';
-      });
-      landmarkInput.addEventListener('input', () => {
-        landmarkInput.dataset.touched = 'true';
       });
     }
 
@@ -193,49 +198,21 @@
     return true;
   }
 
-  function persistMapDetailsAfterConfirm(street, landmark) {
-    window.setTimeout(() => {
-      const detected = normalizePart(localStorage.getItem('qkDetectedLocation'));
-      const mergedDetected = detected.toLowerCase().includes(street.toLowerCase())
-        ? detected
-        : [street, detected].filter(Boolean).join(', ');
-
-      localStorage.setItem(STREET_KEY, street);
-      localStorage.setItem(LANDMARK_KEY, landmark);
-      localStorage.setItem('qkDetectedLocation', mergedDetected);
-
-      const detectedText = byId('detectedLocationText');
-      if (detectedText) detectedText.textContent = mergedDetected;
-
-      const landmarkInput = byId('streetInput');
-      if (landmarkInput) landmarkInput.value = landmark;
-
-      try {
-        const previous = JSON.parse(localStorage.getItem('qkAddressDetails') || '{}');
-        localStorage.setItem('qkAddressDetails', JSON.stringify({
-          ...previous,
-          formattedAddress: mergedDetected,
-          streetOrArea: street,
-          landmark,
-          updatedAt: Date.now()
-        }));
-      } catch {
-        localStorage.setItem('qkAddressDetails', JSON.stringify({
-          formattedAddress: mergedDetected,
-          streetOrArea: street,
-          landmark,
-          updatedAt: Date.now()
-        }));
-      }
-    }, 60);
-  }
-
-  function handleConfirm(event) {
+  function validateConfirm(event) {
     const button = event.target.closest('#qkConfirmMapLocation');
     if (!button) return;
 
+    const house = normalizePart(byId('qkMapHouseInput')?.value);
     const street = normalizePart(byId('qkMapStreetInput')?.value);
     const landmark = normalizePart(byId('qkMapLandmarkInput')?.value);
+
+    if (!house) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      showToast('House / Flat / Floor add karo.', true);
+      byId('qkMapHouseInput')?.focus();
+      return;
+    }
 
     if (!street) {
       event.preventDefault();
@@ -245,7 +222,79 @@
       return;
     }
 
-    persistMapDetailsAfterConfirm(street, landmark);
+    pendingDetails = { house, street, landmark };
+  }
+
+  function readCoordinates() {
+    try {
+      const coordinates = JSON.parse(localStorage.getItem('qkLocationCoords') || 'null');
+      const latitude = Number(coordinates?.latitude);
+      const longitude = Number(coordinates?.longitude);
+      if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+      return {
+        latitude,
+        longitude,
+        accuracy: Number(coordinates?.accuracy || 0)
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  function finishLocationSelection(event) {
+    if (!event.target.closest('#qkConfirmMapLocation') || !pendingDetails) return;
+
+    const { house, street, landmark } = pendingDetails;
+    pendingDetails = null;
+
+    const detected = normalizePart(localStorage.getItem('qkDetectedLocation'));
+    const detectedWithStreet = detected.toLowerCase().includes(street.toLowerCase())
+      ? detected
+      : [street, detected].filter(Boolean).join(', ');
+    const fullAddress = [house, landmark, detectedWithStreet].filter(Boolean).join(', ');
+    const coordinates = readCoordinates();
+
+    localStorage.setItem(HOUSE_KEY, house);
+    localStorage.setItem(STREET_KEY, street);
+    localStorage.setItem(LANDMARK_KEY, landmark);
+    localStorage.setItem('qkDetectedLocation', detectedWithStreet);
+    localStorage.setItem('qkLiveLocation', fullAddress);
+    localStorage.setItem('qkAddressDetails', JSON.stringify({
+      formattedAddress: detectedWithStreet,
+      fullAddress,
+      houseOrFlat: house,
+      streetOrArea: street,
+      landmark,
+      latitude: coordinates?.latitude ?? null,
+      longitude: coordinates?.longitude ?? null,
+      accuracy: coordinates?.accuracy || 0,
+      source: localStorage.getItem('qkLocationSource') || 'openstreetmap_picker',
+      updatedAt: Date.now()
+    }));
+
+    const locationAddress = byId('locationAddress');
+    if (locationAddress) locationAddress.textContent = fullAddress;
+
+    const detectedText = byId('detectedLocationText');
+    if (detectedText) detectedText.textContent = detectedWithStreet;
+
+    const oldHouseInput = byId('houseInput');
+    const oldStreetInput = byId('streetInput');
+    if (oldHouseInput) oldHouseInput.value = house;
+    if (oldStreetInput) oldStreetInput.value = landmark;
+
+    byId('manualAddressBox')?.classList.add('hidden');
+    byId('locationSheet')?.classList.remove('show');
+    byId('qkMapPicker')?.classList.remove('open');
+    document.body.classList.remove('qk-map-picker-open');
+
+    const name = byId('customerNameInput')?.value?.trim() || '';
+    const phone = byId('customerPhoneInput')?.value?.replace(/\D/g, '') || '';
+    if (name && phone.length === 10 && typeof saveCustomerProfile === 'function') {
+      saveCustomerProfile(name, phone, fullAddress).catch(() => {});
+    }
+
+    showToast('Delivery location saved.');
   }
 
   function install() {
@@ -258,7 +307,8 @@
       bodyObserver.observe(document.body, { childList: true, subtree: true });
     }
 
-    document.addEventListener('click', handleConfirm, true);
+    document.addEventListener('click', validateConfirm, true);
+    document.addEventListener('click', finishLocationSelection);
   }
 
   if (document.readyState === 'loading') {
