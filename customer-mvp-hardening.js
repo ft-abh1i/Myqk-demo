@@ -48,9 +48,10 @@
     const button = queryOne('#checkoutBtn');
     if (!button) return;
     const offline = !navigator.onLine;
-    button.disabled = offline || readLock();
+    const placing = typeof state !== 'undefined' && state.placingOrder === true;
+    button.disabled = offline || placing;
     if (offline) button.textContent = 'Reconnect to continue';
-    else if (readLock()) button.textContent = 'Placing order…';
+    else if (placing) button.textContent = 'Placing order…';
     else button.textContent = 'Place order';
   }
 
@@ -68,7 +69,6 @@
       return;
     }
     sessionStorage.setItem(ORDER_LOCK_KEY, String(Date.now()));
-    setCheckoutAvailability();
     window.setTimeout(() => {
       sessionStorage.removeItem(ORDER_LOCK_KEY);
       setCheckoutAvailability();
@@ -159,6 +159,7 @@
   });
 
   document.addEventListener('DOMContentLoaded', () => {
+    sessionStorage.removeItem(ORDER_LOCK_KEY);
     removeLegacyOrderStorage();
     removeFakeOrdersFromState();
     validateRuntime();

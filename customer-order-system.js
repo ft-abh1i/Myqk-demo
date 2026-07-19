@@ -96,6 +96,19 @@
     };
   }
 
+  function requestDeliveryLocation() {
+    checkoutError('Select and save a delivery address.');
+    toast('Select your delivery location to continue.', true);
+    releaseCheckoutLock();
+
+    if (typeof openLocationSheet === 'function') {
+      openLocationSheet();
+      window.setTimeout(() => {
+        document.getElementById('allowLocationBtn')?.focus();
+      }, 80);
+    }
+  }
+
   async function placeVerifiedOrder() {
     if (state.placingOrder) return;
 
@@ -126,9 +139,7 @@
       return;
     }
     if (!deliveryAddress) {
-      checkoutError('Select and save a delivery address.');
-      toast('Select delivery location first.', true);
-      releaseCheckoutLock();
+      requestDeliveryLocation();
       return;
     }
     if (!state.user || !db) {
@@ -338,4 +349,11 @@
   // real-customer-app.js registers its click listener at DOMContentLoaded.
   // Replacing this global function before that event makes the verified flow active.
   placeOrder = placeVerifiedOrder;
+
+  document.addEventListener('click', (event) => {
+    if (!event.target.closest('#saveAddressBtn')) return;
+    window.setTimeout(() => {
+      if (localStorage.getItem('qkLiveLocation')?.trim()) checkoutError('');
+    }, 0);
+  });
 })();
