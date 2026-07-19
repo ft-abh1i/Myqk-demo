@@ -24,6 +24,8 @@
   function closeOverlays() {
     document.getElementById('cartOverlay')?.classList.remove('open');
     document.getElementById('locationSheet')?.classList.remove('show');
+    document.getElementById('qkMapPicker')?.classList.remove('open');
+    document.body.classList.remove('qk-map-picker-open');
   }
 
   function restorePage(saved) {
@@ -99,4 +101,28 @@
       }
     });
   });
+})();
+
+(() => {
+  function loadLocationMapPicker() {
+    if (!document.querySelector('link[href^="location-map-picker.css"]')) {
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = 'location-map-picker.css?v=20260719-google-map-picker-1';
+      document.head.appendChild(link);
+    }
+
+    if (!document.querySelector('script[src^="location-map-picker.js"]')) {
+      const script = document.createElement('script');
+      script.src = 'location-map-picker.js?v=20260719-google-map-picker-1';
+      script.async = true;
+      document.body.appendChild(script);
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', loadLocationMapPicker, { once: true });
+  } else {
+    loadLocationMapPicker();
+  }
 })();
