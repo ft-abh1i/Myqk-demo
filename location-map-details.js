@@ -4,6 +4,7 @@
   const STREET_KEY = 'qkMapStreetOrArea';
   const LANDMARK_KEY = 'qkMapLandmark';
   let observer = null;
+  let statusObserver = null;
 
   function byId(id) {
     return document.getElementById(id);
@@ -80,11 +81,8 @@
         box-shadow: 0 0 0 3px rgba(31, 122, 77, .09);
       }
 
-      .qk-map-address-help {
-        margin: -1px 1px 1px;
-        color: var(--soft, #6b7a72);
-        font-size: 10.5px;
-        line-height: 1.4;
+      .qk-map-status:empty {
+        display: none;
       }
 
       .qk-map-picker-foot {
@@ -131,6 +129,12 @@
     return parts.slice(0, 2).join(', ');
   }
 
+  function removeRedundantStatus(status) {
+    if (!status) return;
+    const text = normalizePart(status.textContent);
+    if (/^pin ko exact building\b/i.test(text)) status.textContent = '';
+  }
+
   function enhancePicker() {
     const picker = byId('qkMapPicker');
     const selectedAddress = byId('qkSelectedAddress');
@@ -148,7 +152,6 @@
             <span>NEARBY LANDMARK (OPTIONAL)</span>
             <input id="qkMapLandmarkInput" type="text" maxlength="120" autocomplete="off" placeholder="Example: Near school, market or temple">
           </label>
-          <p class="qk-map-address-help">Map par naam na dikhe to street aur landmark yahan manually likh do. Rider ko pin ke saath ye details bhi milengi.</p>
         </div>`);
 
       const streetInput = byId('qkMapStreetInput');
@@ -173,6 +176,14 @@
         if (detected) streetInput.value = detected;
       });
       observer.observe(selectedAddress, { childList: true, characterData: true, subtree: true });
+    }
+
+    const mapStatus = byId('qkMapStatus');
+    if (mapStatus && !mapStatus.dataset.qkInstructionObserved) {
+      mapStatus.dataset.qkInstructionObserved = 'true';
+      statusObserver = new MutationObserver(() => removeRedundantStatus(mapStatus));
+      statusObserver.observe(mapStatus, { childList: true, characterData: true, subtree: true });
+      removeRedundantStatus(mapStatus);
     }
 
     const detected = deriveStreetOrArea(selectedAddress.textContent);
