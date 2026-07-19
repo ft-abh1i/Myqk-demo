@@ -2,6 +2,12 @@
 
 (() => {
   const TERMINAL_STATUSES = new Set(['completed', 'cancelled', 'merchant_rejected']);
+  const CUSTOMER_CANCELLABLE_STATUSES = new Set([
+    'pending_merchant',
+    'merchant_accepted',
+    'preparing',
+    'ready_for_pickup'
+  ]);
   const STATUS_META = {
     pending_merchant: {
       title: 'Order placed',
@@ -66,6 +72,8 @@
   };
   const TIMELINE_LABELS = ['Placed', 'Confirmed', 'Packed', 'On the way', 'Delivered'];
   let selectedOrderId = null;
+  let pendingCancelOrderId = null;
+  let cancellationInFlight = false;
 
   function escapeValue(value) {
     return String(value ?? '')
@@ -131,6 +139,23 @@
       tone: 'active',
       step: 0
     };
+  }
+
+  function hasAssignedRider(order) {
+    return Boolean(
+      order?.assignedRiderId
+      || order?.assignedRiderUid
+      || order?.riderId
+      || order?.rider?.id
+    );
+  }
+
+  function canCustomerCancel(order) {
+    return Boolean(
+      order
+      && CUSTOMER_CANCELLABLE_STATUSES.has(order.status)
+      && !hasAssignedRider(order)
+    );
   }
 
   function storeName(order) {
@@ -310,9 +335,148 @@
 
   function detailAction(order) {
     if (!TERMINAL_STATUSES.has(order.status)) {
-      return '<button class="qk-order-primary-action" type="button" data-tab="track">Track order</button>';
+      return `<div class="qk-order-action-stack">
+        <button class="qk-order-primary-action" type="button" data-tab="track">Track order</button>
+        ${canCustomerCancel(order) ? `<button class="qk-order-cancel-action" type="button" data-order-cancel="${escapeValue(order.id)}">Cancel order</button>
+          <p>Cancellation is available until a delivery partner is assigned.</p>` : ''}
+      </div>`;
     }
     return '<button class="qk-order-primary-action" type="button" data-tab="darkstore">Browse stores</button>';
+  }
+
+  function showOrderToast(message, error = false) {
+    if (typeof toast === 'function') {
+      toast(message, error);
+      return;
+    }
+    const element = document.getElementById('toast');
+    if (!element) return;
+    element.textContent = message;
+    element.classList.add('show');
+    element.classList.toggle('error', error);
+    window.clearTimeout(showOrderToast.timer);
+    showOrderToast.timer = window.setTimeout(() => element.classList.remove('show', 'error'), 3000);
+  }
+
+  function ensureCancelSheet() {
+    let sheet = document.getElementById('qkOrderCancelSheet');
+    if (sheet) return sheet;
+
+    sheet = document.createElement('section');
+    sheet.id = 'qkOrderCancelSheet';
+    sheet.className = 'qk-order-cancel-sheet';
+    sheet.setAttribute('role', 'dialog');
+    sheet.setAttribute('aria-modal', 'true');
+    sheet.setAttribute('aria-labelledby', 'qkOrderCancelTitle');
+    sheet.innerHTML = `
+      <button class="qk-order-cancel-backdrop" type="button" data-cancel-sheet-close aria-label="Keep order"></button>
+      <div class="qk-order-cancel-panel">
+        <span class="qk-order-cancel-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M12 8v5M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg>
+        </span>
+        <h2 id="qkOrderCancelTitle">Cancel this order?</h2>
+        <p>A delivery partner has not been assigned yet. Once cancelled, this order cannot be restored.</p>
+        <small id="qkOrderCancelNumber"></small>
+        <div class="qk-order-cancel-sheet-actions">
+          <button type="button" data-cancel-sheet-close>Keep order</button>
+          <button type="button" data-confirm-order-cancel>Yes, cancel order</button>
+        </div>
+      </div>`;
+    document.body.appendChild(sheet);
+    return sheet;
+  }
+
+  function closeCancelSheet() {
+    if (cancellationInFlight) return;
+    pendingCancelOrderId = null;
+    document.getElementById('qkOrderCancelSheet')?.classList.remove('show');
+  }
+
+  function openCancelSheet(orderId) {
+    const order = state.orders.find((item) => item.id === orderId);
+    if (!canCustomerCancel(order)) {
+      showOrderToast('A rider has already been assigned. This order can no longer be cancelled.', true);
+      return;
+    }
+
+    pendingCancelOrderId = orderId;
+    const sheet = ensureCancelSheet();
+    const number = sheet.querySelector('#qkOrderCancelNumber');
+    if (number) number.textContent = `Order #${orderNumber(order)}`;
+    sheet.classList.add('show');
+    window.setTimeout(() => sheet.querySelector('[data-confirm-order-cancel]')?.focus(), 80);
+  }
+
+  async function cancelCustomerOrder() {
+    if (cancellationInFlight || !pendingCancelOrderId) return;
+    const orderId = pendingCancelOrderId;
+    const sheet = ensureCancelSheet();
+    const confirmButton = sheet.querySelector('[data-confirm-order-cancel]');
+    const keepButton = sheet.querySelector('[data-cancel-sheet-close]');
+    const userId = state.user?.uid;
+
+    if (!db || !userId) {
+      showOrderToast('Order service is still connecting. Please try again.', true);
+      return;
+    }
+
+    cancellationInFlight = true;
+    if (confirmButton) {
+      confirmButton.disabled = true;
+      confirmButton.textContent = 'Cancelling…';
+    }
+    if (keepButton) keepButton.disabled = true;
+
+    try {
+      const orderRef = db.collection('orders').doc(orderId);
+      await db.runTransaction(async (transaction) => {
+        const snapshot = await transaction.get(orderRef);
+        if (!snapshot.exists) throw new Error('ORDER_NOT_FOUND');
+        const latestOrder = snapshot.data();
+        if (latestOrder.customerId !== userId) throw new Error('NOT_ALLOWED');
+        if (!canCustomerCancel(latestOrder)) throw new Error('RIDER_ALREADY_ASSIGNED');
+
+        const now = firebase.firestore.FieldValue.serverTimestamp();
+        transaction.update(orderRef, {
+          status: 'cancelled',
+          cancelledBy: 'customer',
+          cancellationReason: 'Cancelled by customer before rider assignment',
+          cancelledFromStatus: latestOrder.status,
+          cancelledAt: now,
+          updatedAt: now
+        });
+      });
+
+      const localOrder = state.orders.find((order) => order.id === orderId);
+      if (localOrder) {
+        localOrder.status = 'cancelled';
+        localOrder.cancelledBy = 'customer';
+      }
+      sheet.classList.remove('show');
+      pendingCancelOrderId = null;
+      renderOrders();
+      showOrderToast('Order cancelled successfully.');
+    } catch (error) {
+      console.error('Customer order cancellation failed:', error);
+      const riderAssigned = error?.message === 'RIDER_ALREADY_ASSIGNED';
+      const permissionDenied = error?.code === 'permission-denied' || error?.message === 'NOT_ALLOWED';
+      if (riderAssigned) {
+        sheet.classList.remove('show');
+        pendingCancelOrderId = null;
+      }
+      showOrderToast(riderAssigned
+        ? 'A rider has already been assigned. This order can no longer be cancelled.'
+        : permissionDenied
+          ? 'Cancellation permission was denied. Please try again later.'
+          : 'Could not cancel the order. Please try again.', true);
+    } finally {
+      cancellationInFlight = false;
+      if (confirmButton) {
+        confirmButton.disabled = false;
+        confirmButton.textContent = 'Yes, cancel order';
+      }
+      if (keepButton) keepButton.disabled = false;
+    }
   }
 
   function detailMarkup(order) {
@@ -394,9 +558,31 @@
       return;
     }
 
+    const cancelButton = event.target.closest('[data-order-cancel]');
+    if (cancelButton) {
+      event.preventDefault();
+      openCancelSheet(cancelButton.dataset.orderCancel);
+      return;
+    }
+
+    if (event.target.closest('[data-confirm-order-cancel]')) {
+      event.preventDefault();
+      cancelCustomerOrder();
+      return;
+    }
+
+    if (event.target.closest('[data-cancel-sheet-close]')) {
+      closeCancelSheet();
+      return;
+    }
+
     if (event.target.closest('[data-orders-back]')) {
       selectedOrderId = null;
       renderOrders();
     }
   }, true);
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') closeCancelSheet();
+  });
 })();
