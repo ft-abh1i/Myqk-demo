@@ -104,20 +104,35 @@
 })();
 
 (() => {
+  const PICKER_VERSION = '20260719-openstreetmap-details-2';
+
+  function loadDetailsScript() {
+    if (document.querySelector('script[src^="location-map-details.js"]')) return;
+    const detailsScript = document.createElement('script');
+    detailsScript.src = `location-map-details.js?v=${PICKER_VERSION}`;
+    detailsScript.async = false;
+    document.body.appendChild(detailsScript);
+  }
+
   function loadLocationMapPicker() {
     if (!document.querySelector('link[href^="location-map-picker.css"]')) {
       const link = document.createElement('link');
       link.rel = 'stylesheet';
-      link.href = 'location-map-picker.css?v=20260719-osm-picker-1';
+      link.href = `location-map-picker.css?v=${PICKER_VERSION}`;
       document.head.appendChild(link);
     }
 
-    if (!document.querySelector('script[src^="location-map-picker.js"]')) {
-      const script = document.createElement('script');
-      script.src = 'location-map-picker.js?v=20260719-osm-picker-1';
-      script.async = true;
-      document.body.appendChild(script);
+    const existingPickerScript = document.querySelector('script[src^="location-map-picker.js"]');
+    if (existingPickerScript) {
+      loadDetailsScript();
+      return;
     }
+
+    const script = document.createElement('script');
+    script.src = `location-map-picker.js?v=${PICKER_VERSION}`;
+    script.async = false;
+    script.addEventListener('load', loadDetailsScript, { once: true });
+    document.body.appendChild(script);
   }
 
   if (document.readyState === 'loading') {
