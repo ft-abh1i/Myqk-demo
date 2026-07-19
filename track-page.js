@@ -6,60 +6,44 @@
     pending_merchant: {
       title: 'Order placed',
       description: 'Waiting for the store to confirm your order.',
-      step: 0,
       progress: 10
     },
     merchant_accepted: {
       title: 'Order confirmed',
       description: 'The store has accepted your order.',
-      step: 1,
       progress: 26
     },
     preparing: {
       title: 'Your items are being packed',
       description: 'The store is carefully getting your order ready.',
-      step: 1,
       progress: 40
     },
     ready_for_pickup: {
       title: 'Ready for pickup',
       description: 'We are finding a delivery partner near the store.',
-      step: 2,
       progress: 56
     },
     accepted: {
       title: 'Delivery partner assigned',
       description: 'Your delivery partner is heading to the store.',
-      step: 3,
       progress: 68
     },
     arrived_pickup: {
       title: 'Delivery partner at the store',
       description: 'Your order will be picked up shortly.',
-      step: 3,
       progress: 76
     },
     picked_up: {
       title: 'Order is on the way',
       description: 'Your delivery partner is coming to you.',
-      step: 4,
       progress: 88
     },
     completed: {
       title: 'Order delivered',
       description: 'Your order was delivered successfully.',
-      step: 5,
       progress: 100
     }
   };
-  const TIMELINE = [
-    { label: 'Order placed', hint: 'We received your order' },
-    { label: 'Store confirmed', hint: 'The store accepted your order' },
-    { label: 'Packed and ready', hint: 'Items are ready for pickup' },
-    { label: 'Partner assigned', hint: 'A delivery partner is at work' },
-    { label: 'Out for delivery', hint: 'Your order is on the way' },
-    { label: 'Delivered', hint: 'Order delivered to your address' }
-  ];
 
   function escapeValue(value) {
     return String(value == null ? '' : value)
@@ -86,7 +70,6 @@
     return STATUS_META[status] || {
       title: typeof statusLabel === 'function' ? statusLabel(status) : 'Order in progress',
       description: 'We will update this page as your order moves forward.',
-      step: 0,
       progress: 8
     };
   }
@@ -343,35 +326,8 @@
       + '</section>';
   }
 
-  function timelineMarkup(order) {
-    const meta = metaFor(order.status);
-    return '<section class="qk-track-card qk-track-progress-card">'
-      + '<div class="qk-track-card-head"><div><small>ORDER JOURNEY</small><h2>Live status</h2></div>'
-      + '<span>' + meta.progress + '%</span></div>'
-      + '<div class="qk-track-timeline">'
-      + TIMELINE.map((step, index) => {
-        const done = index < meta.step;
-        const current = index === meta.step;
-        return '<div class="qk-track-step ' + (done ? 'done ' : '') + (current ? 'current' : '') + '">'
-          + '<span class="qk-track-step-dot">'
-          + (done ? '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 8 2.3 2.3L12 5"></path></svg>' : '')
-          + '</span>'
-          + '<div><strong>' + escapeValue(step.label) + '</strong>'
-          + '<p>' + escapeValue(current ? meta.description : step.hint) + '</p></div>'
-          + (current ? '<b>NOW</b>' : '')
-          + '</div>';
-      }).join('')
-      + '</div></section>';
-  }
-
   function riderMarkup(order) {
-    if (!hasRider(order)) {
-      return '<section class="qk-track-card qk-track-rider-card is-waiting">'
-        + '<span class="qk-track-rider-radar" aria-hidden="true"><i></i></span>'
-        + '<div><small>DELIVERY PARTNER</small><strong>Finding someone nearby</strong>'
-        + '<p>You will see your partner and live location here after assignment.</p></div>'
-        + '</section>';
-    }
+    if (!hasRider(order)) return '';
 
     const name = riderName(order);
     const phone = String(
@@ -453,7 +409,6 @@
     main.innerHTML = '<div class="view qk-track-view"><div class="qk-track-scroll">'
       + heroMarkup(order)
       + mapMarkup(order, route)
-      + timelineMarkup(order)
       + riderMarkup(order)
       + tripMarkup(order)
       + '</div></div>';
