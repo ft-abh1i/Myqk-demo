@@ -13,9 +13,11 @@
   <link rel="dns-prefetch" href="https://images.unsplash.com">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://unpkg.com" crossorigin>
   <link rel="preload" href="responsive-shell.css?v=20260718-clean-loader" as="style">
   <link rel="preload" href="real-customer-app.js?v=20260718-preload" as="script">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="profile.css">
   <link rel="stylesheet" href="profile-layout.css">
@@ -28,7 +30,7 @@
   <link rel="stylesheet" href="live-order-bottom.css?v=20260718-centered-cross">
   <link rel="stylesheet" href="ai-assistant.css?v=20260719-keyboard-1">
   <link rel="stylesheet" href="orders-page.css?v=20260719-orders-3">
-  <link rel="stylesheet" href="track-page.css?v=20260719-track-2">
+  <link rel="stylesheet" href="track-page.css?v=20260719-track-3">
   <style>
     html,
     body,
@@ -180,6 +182,7 @@
   <section class="sheet" id="locationSheet" role="dialog" aria-modal="true" aria-labelledby="locationTitle">
     <div class="sheet-panel"><div class="sheet-head"><h2 id="locationTitle">Select location</h2><button class="sheet-close" id="locationClose" type="button" aria-label="Close location sheet">×</button></div><button class="location-access-btn" id="allowLocationBtn" type="button">Give location access</button><div class="detected-location hidden" id="detectedLocationBox"><small>DETECTED LOCATION</small><strong id="detectedLocationText"></strong></div><div class="manual-address hidden" id="manualAddressBox"><p>Add exact address</p><input id="houseInput" type="text" placeholder="House / Flat / Floor" autocomplete="address-line1"><input id="streetInput" type="text" placeholder="Street / Area / Landmark" autocomplete="address-line2"><button class="save-address-btn" id="saveAddressBtn" type="button">Save address</button></div><p class="location-status" id="locationStatus">Tap Give location access to detect your area.</p></div>
   </section>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="" defer></script>
   <script src="app-preloader.js?v=20260718-loader-88-5" defer></script>
   <script src="real-customer-app.js?v=20260718-preload" defer></script>
   <script src="homepage-stores-only.js?v=20260718-atta-rice-dal-1" defer></script>
@@ -192,7 +195,7 @@
   <script src="i18n.js" defer></script>
   <script src="catalog-art.js" defer></script>
   <script src="orders-page.js?v=20260719-orders-5" defer></script>
-  <script src="track-page.js?v=20260719-track-2" defer></script>
+  <script src="track-page.js?v=20260719-track-3" defer></script>
   <script src="customer-mvp-hardening.js?v=20260719-checkout-gate-1" defer></script>
   <script src="live-order-banner-controls.js?v=20260718-compact-dismiss" defer></script>
   <script src="customer-order-system.js?v=20260719-checkout-gate-1" defer></script>
