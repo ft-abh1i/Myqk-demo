@@ -152,25 +152,42 @@ body[data-secondary-tab="ai"] .ai-view {
   flex: 0 0 auto;
   padding: 10px 10px calc(10px + env(safe-area-inset-bottom));
   display: flex;
+  align-items: flex-end;
   gap: 8px;
   border-top: 1px solid var(--border);
   background: #ffffff;
 }
 
-.ai-form input {
+.ai-form textarea {
   flex: 1;
   min-width: 0;
+  width: 100%;
+  min-height: 42px;
   height: 42px;
-  padding: 0 13px;
-  border-radius: 999px;
+  max-height: 84px;
+  padding: 10px 13px;
+  overflow-y: auto;
+  resize: none;
+  border: 0;
+  outline: 0;
+  border-radius: 22px;
   background: var(--surface);
   color: var(--ink);
+  font: inherit;
   font-size: 14px;
+  line-height: 22px;
   -webkit-user-select: text;
   user-select: text;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.ai-form textarea::placeholder {
+  color: #7d817f;
 }
 
 .ai-form button {
+  flex: 0 0 auto;
   height: 42px;
   padding: 0 15px;
   border-radius: 999px;
@@ -180,8 +197,47 @@ body[data-secondary-tab="ai"] .ai-view {
   font-weight: 800;
 }
 
-.ai-form button:disabled {
+.ai-form button:disabled,
+.ai-quick-row button:disabled {
   opacity: 0.55;
+}
+
+body.qk-ai-input-focused #bottomNav {
+  display: none !important;
+}
+
+body[data-secondary-tab="ai"].qk-ai-input-focused #app {
+  height: var(--qk-ai-viewport-height, 100dvh);
+  min-height: var(--qk-ai-viewport-height, 100dvh);
+  max-height: var(--qk-ai-viewport-height, 100dvh);
+}
+
+body[data-secondary-tab="ai"].qk-ai-input-focused .app-main {
+  padding-bottom: 0 !important;
+}
+
+body[data-secondary-tab="ai"].qk-ai-input-focused .ai-view {
+  gap: 0;
+}
+
+body[data-secondary-tab="ai"].qk-ai-input-focused .ai-quick-row {
+  display: none;
+}
+
+body[data-secondary-tab="ai"].qk-ai-input-focused .ai-chat-card {
+  border-right: 0;
+  border-left: 0;
+  border-bottom: 0;
+  border-radius: 0;
+}
+
+body[data-secondary-tab="ai"].qk-ai-input-focused .ai-form {
+  padding-bottom: 8px;
+}
+
+body[data-secondary-tab="ai"].qk-ai-keyboard-open .secondary-topbar {
+  padding-top: 8px;
+  padding-bottom: 8px;
 }
 
 @media (max-height: 720px) {
