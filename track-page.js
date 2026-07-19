@@ -260,21 +260,6 @@
     return 'Updating shortly';
   }
 
-  function directionsUrl(order, route) {
-    if (!route.rider || !route.drop) return '';
-    const origin = route.rider.latitude + ',' + route.rider.longitude;
-    const destination = route.drop.latitude + ',' + route.drop.longitude;
-    const waypoint = order.status === 'picked_up' || !route.pickup
-      ? ''
-      : '&waypoints=' + encodeURIComponent(route.pickup.latitude + ',' + route.pickup.longitude);
-    return 'https://www.google.com/maps/dir/?api=1&origin='
-      + encodeURIComponent(origin)
-      + '&destination='
-      + encodeURIComponent(destination)
-      + waypoint
-      + '&travelmode=driving';
-  }
-
   function projectedPoints(order, route) {
     const livePoints = [
       { key: 'store', location: route.pickup },
@@ -539,7 +524,6 @@
 
   function mapMarkup(order, route) {
     const projection = projectedPoints(order, route);
-    const mapLink = directionsUrl(order, route);
     const freshness = locationFreshness(order);
     const realMap = Boolean(route.rider && leafletAvailable());
     const badgeLabel = route.rider && freshness.label === 'PREVIEW' ? 'GPS' : freshness.label;
@@ -564,9 +548,6 @@
       + (route.distance != null
         ? '<div><small data-track-distance-label>REMAINING ROUTE</small><strong data-track-distance>' + route.distance.toFixed(1) + ' km</strong></div>'
         : '<div><small data-track-distance-label>TRACKING</small><strong data-track-distance>' + (hasRider(order) ? 'Partner assigned' : 'Starts after assignment') + '</strong></div>')
-      + (mapLink
-        ? '<a href="' + escapeValue(mapLink) + '" target="_blank" rel="noopener" aria-label="Open live route in maps" data-track-map-link>Open map</a>'
-        : '')
       + '</div>'
       + '</section>';
   }
@@ -649,7 +630,6 @@
     const eta = document.querySelector('[data-track-eta]');
     const distanceLabel = document.querySelector('[data-track-distance-label]');
     const distance = document.querySelector('[data-track-distance]');
-    const mapLink = document.querySelector('[data-track-map-link]');
 
     if (freshnessElement) freshnessElement.textContent = freshness.text;
     if (badge) {
@@ -664,10 +644,6 @@
       distance.textContent = route.distance != null
         ? route.distance.toFixed(1) + ' km'
         : hasRider(order) ? 'Partner assigned' : 'Starts after assignment';
-    }
-    if (mapLink) {
-      const updatedLink = directionsUrl(order, route);
-      if (updatedLink) mapLink.href = updatedLink;
     }
     updateLiveMap(order, route);
   }

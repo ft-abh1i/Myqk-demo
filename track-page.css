@@ -476,7 +476,7 @@ body[data-secondary-tab="track"] #appMain {
 .qk-track-map-foot {
   padding: 12px 14px 13px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
   align-items: center;
   border-top: 1px solid var(--border);
@@ -503,16 +503,6 @@ body[data-secondary-tab="track"] #appMain {
   font-weight: 850;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.qk-track-map-foot a {
-  padding: 9px 11px;
-  border-radius: 10px;
-  background: var(--primary);
-  color: #ffffff;
-  font-size: 9px;
-  font-weight: 850;
-  text-decoration: none;
 }
 
 .qk-track-card {
@@ -822,10 +812,6 @@ body[data-secondary-tab="track"] #appMain {
     grid-template-columns: 1fr 1fr;
   }
 
-  .qk-track-map-foot a {
-    grid-column: 1 / -1;
-    text-align: center;
-  }
 }
 
 @media (max-height: 700px) {
