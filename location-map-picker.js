@@ -1,19 +1,26 @@
 'use strict';
 
 (() => {
-  const MAP_CONFIG_ENDPOINT = '/api/maps-config';
-  const INDIA_CENTER = { lat: 20.5937, lng: 78.9629 };
+  const LEAFLET_VERSION = '1.9.4';
+  const LEAFLET_CSS = `https://unpkg.com/leaflet@${LEAFLET_VERSION}/dist/leaflet.css`;
+  const LEAFLET_JS = `https://unpkg.com/leaflet@${LEAFLET_VERSION}/dist/leaflet.js`;
+  const NOMINATIM_BASE = 'https://nominatim.openstreetmap.org';
   const DEFAULT_ZOOM = 18;
+  const NOMINATIM_MIN_INTERVAL = 1100;
 
-  let mapsLoadPromise = null;
+  let leafletLoadPromise = null;
   let picker = null;
   let map = null;
-  let geocoder = null;
+  let tileLayer = null;
+  let accuracyCircle = null;
   let selectedCoordinates = null;
   let selectedAddress = '';
   let reverseTimer = null;
   let reverseRequestId = 0;
   let gpsAccuracy = 0;
+  let lastNominatimRequestAt = 0;
+  let nominatimQueue = Promise.resolve();
+  const reverseCache = new Map();
 
   function byId(id) {
     return document.getElementById(id);
@@ -106,14 +113,12 @@
         </form>
 
         <div class="qk-map-stage">
-          <div id="qkGoogleMap" class="qk-google-map" aria-label="Google Map location picker"></div>
-          <div class="qk-map-center-pin" aria-hidden="true">
-            <span></span>
-          </div>
+          <div id="qkLeafletMap" class="qk-google-map" aria-label="OpenStreetMap location picker"></div>
+          <div class="qk-map-center-pin" aria-hidden="true"><span></span></div>
           <button id="qkMapRecenter" class="qk-map-recenter" type="button" aria-label="Use my current location">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
           </button>
-          <div id="qkMapLoading" class="qk-map-loading">Loading Google Maps…</div>
+          <div id="qkMapLoading" class="qk-map-loading">Loading free map…</div>
         </div>
 
         <div class="qk-map-picker-foot">
@@ -137,51 +142,42 @@
     return picker;
   }
 
-  async function fetchMapsKey() {
-    const response = await fetch(MAP_CONFIG_ENDPOINT, { cache: 'no-store' });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok || !data.enabled || !data.apiKey) {
-      throw new Error('MAPS_NOT_CONFIGURED');
-    }
-    return data.apiKey;
-  }
+  function loadLeaflet() {
+    if (window.L?.map) return Promise.resolve(window.L);
+    if (leafletLoadPromise) return leafletLoadPromise;
 
-  function loadGoogleMaps() {
-    if (window.google?.maps?.Map) return Promise.resolve(window.google.maps);
-    if (mapsLoadPromise) return mapsLoadPromise;
+    leafletLoadPromise = new Promise((resolve, reject) => {
+      if (!document.querySelector('link[data-qk-leaflet="true"]')) {
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = LEAFLET_CSS;
+        link.dataset.qkLeaflet = 'true';
+        document.head.appendChild(link);
+      }
 
-    mapsLoadPromise = fetchMapsKey().then((apiKey) => new Promise((resolve, reject) => {
-      const callbackName = '__qkGoogleMapsReady';
-      const existing = document.querySelector('script[data-qk-google-maps="true"]');
-
-      window[callbackName] = () => {
-        delete window[callbackName];
-        if (window.google?.maps?.Map) resolve(window.google.maps);
-        else reject(new Error('GOOGLE_MAPS_LOAD_FAILED'));
-      };
-
+      const existing = document.querySelector('script[data-qk-leaflet="true"]');
       if (existing) {
-        if (window.google?.maps?.Map) resolve(window.google.maps);
-        else existing.addEventListener('error', () => reject(new Error('GOOGLE_MAPS_LOAD_FAILED')), { once: true });
+        if (window.L?.map) resolve(window.L);
+        else {
+          existing.addEventListener('load', () => window.L?.map ? resolve(window.L) : reject(new Error('LEAFLET_LOAD_FAILED')), { once: true });
+          existing.addEventListener('error', () => reject(new Error('LEAFLET_LOAD_FAILED')), { once: true });
+        }
         return;
       }
 
       const script = document.createElement('script');
-      script.dataset.qkGoogleMaps = 'true';
+      script.src = LEAFLET_JS;
       script.async = true;
-      script.defer = true;
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&v=weekly&loading=async&callback=${callbackName}&language=en&region=IN&auth_referrer_policy=origin`;
-      script.addEventListener('error', () => {
-        delete window[callbackName];
-        reject(new Error('GOOGLE_MAPS_LOAD_FAILED'));
-      }, { once: true });
+      script.dataset.qkLeaflet = 'true';
+      script.addEventListener('load', () => window.L?.map ? resolve(window.L) : reject(new Error('LEAFLET_LOAD_FAILED')), { once: true });
+      script.addEventListener('error', () => reject(new Error('LEAFLET_LOAD_FAILED')), { once: true });
       document.head.appendChild(script);
-    })).catch((error) => {
-      mapsLoadPromise = null;
+    }).catch((error) => {
+      leafletLoadPromise = null;
       throw error;
     });
 
-    return mapsLoadPromise;
+    return leafletLoadPromise;
   }
 
   function updateSelectedAddress(address, loading = false) {
@@ -198,7 +194,7 @@
     status.classList.toggle('error', error);
   }
 
-  function setMapLoading(loading, text = 'Loading Google Maps…') {
+  function setMapLoading(loading, text = 'Loading free map…') {
     const overlay = byId('qkMapLoading');
     if (!overlay) return;
     overlay.textContent = text;
@@ -208,83 +204,139 @@
   function mapCenterCoordinates() {
     const center = map?.getCenter?.();
     if (!center) return null;
-    const latitude = Number(center.lat().toFixed(6));
-    const longitude = Number(center.lng().toFixed(6));
+    const latitude = Number(center.lat.toFixed(6));
+    const longitude = Number(center.lng.toFixed(6));
     if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
     return { latitude, longitude };
   }
 
-  function queueReverseGeocode() {
-    window.clearTimeout(reverseTimer);
-    updateSelectedAddress('', true);
-    reverseTimer = window.setTimeout(reverseGeocodeMapCenter, 350);
+  function cacheKey(latitude, longitude) {
+    return `${Number(latitude).toFixed(5)},${Number(longitude).toFixed(5)}`;
   }
 
-  function reverseGeocodeMapCenter() {
-    const coordinates = mapCenterCoordinates();
-    if (!coordinates || !geocoder) return;
-
-    selectedCoordinates = coordinates;
-    const requestId = ++reverseRequestId;
-    geocoder.geocode({
-      location: { lat: coordinates.latitude, lng: coordinates.longitude },
-      region: 'IN'
-    }, (results, status) => {
-      if (requestId !== reverseRequestId) return;
-
-      if (status === 'OK' && results?.[0]?.formatted_address) {
-        selectedAddress = results[0].formatted_address;
-        updateSelectedAddress(selectedAddress, false);
-        setMapStatus('Pin ko exact building par set karke confirm karo.');
-        return;
+  function nominatimFetch(path, parameters) {
+    const request = async () => {
+      const elapsed = Date.now() - lastNominatimRequestAt;
+      if (elapsed < NOMINATIM_MIN_INTERVAL) {
+        await new Promise((resolve) => window.setTimeout(resolve, NOMINATIM_MIN_INTERVAL - elapsed));
       }
 
+      lastNominatimRequestAt = Date.now();
+      const query = new URLSearchParams(parameters);
+      const response = await fetch(`${NOMINATIM_BASE}${path}?${query.toString()}`, { cache: 'no-store' });
+      if (!response.ok) throw new Error('ADDRESS_SERVICE_FAILED');
+      return response.json();
+    };
+
+    const task = nominatimQueue.then(request, request);
+    nominatimQueue = task.catch(() => {});
+    return task;
+  }
+
+  function queueReverseGeocode() {
+    window.clearTimeout(reverseTimer);
+    selectedCoordinates = mapCenterCoordinates();
+    updateSelectedAddress('', true);
+    reverseTimer = window.setTimeout(reverseGeocodeMapCenter, 650);
+  }
+
+  async function reverseGeocodeMapCenter() {
+    const coordinates = mapCenterCoordinates();
+    if (!coordinates) return;
+
+    selectedCoordinates = coordinates;
+    const key = cacheKey(coordinates.latitude, coordinates.longitude);
+    const cached = reverseCache.get(key);
+    if (cached) {
+      selectedAddress = cached;
+      updateSelectedAddress(selectedAddress, false);
+      setMapStatus('Pin ko exact building par set karke confirm karo.');
+      return;
+    }
+
+    const requestId = ++reverseRequestId;
+    try {
+      const data = await nominatimFetch('/reverse', {
+        format: 'jsonv2',
+        lat: String(coordinates.latitude),
+        lon: String(coordinates.longitude),
+        zoom: '18',
+        addressdetails: '1'
+      });
+      if (requestId !== reverseRequestId) return;
+
+      selectedAddress = data?.display_name || `${coordinates.latitude.toFixed(5)}, ${coordinates.longitude.toFixed(5)}`;
+      reverseCache.set(key, selectedAddress);
+      updateSelectedAddress(selectedAddress, false);
+      setMapStatus('Pin ko exact building par set karke confirm karo.');
+    } catch (error) {
+      if (requestId !== reverseRequestId) return;
+      console.warn('OpenStreetMap reverse geocoding failed:', error);
       selectedAddress = `${coordinates.latitude.toFixed(5)}, ${coordinates.longitude.toFixed(5)}`;
       updateSelectedAddress(selectedAddress, false);
-      setMapStatus('Exact address nahi mila. Pin verify karke confirm karo.', true);
-    });
+      setMapStatus('Address service unavailable hai. Pin verify karke confirm karo.', true);
+    }
+  }
+
+  function updateAccuracyCircle(center, accuracy) {
+    if (!map || !window.L) return;
+    if (accuracyCircle) {
+      accuracyCircle.remove();
+      accuracyCircle = null;
+    }
+    if (!Number.isFinite(accuracy) || accuracy <= 0) return;
+
+    accuracyCircle = L.circle(center, {
+      radius: Math.min(accuracy, 500),
+      color: '#1f7a4d',
+      weight: 1,
+      fillColor: '#1f7a4d',
+      fillOpacity: 0.08,
+      interactive: false
+    }).addTo(map);
   }
 
   async function initializeMap(center) {
-    await loadGoogleMaps();
+    await loadLeaflet();
     ensurePickerUi();
 
-    if (!geocoder) geocoder = new google.maps.Geocoder();
-
-    const mapElement = byId('qkGoogleMap');
+    const mapElement = byId('qkLeafletMap');
     if (!mapElement) throw new Error('MAP_CONTAINER_MISSING');
 
     if (!map) {
-      map = new google.maps.Map(mapElement, {
-        center,
+      map = L.map(mapElement, {
+        center: [center.lat, center.lng],
         zoom: DEFAULT_ZOOM,
-        clickableIcons: false,
-        fullscreenControl: false,
-        mapTypeControl: false,
-        streetViewControl: false,
-        rotateControl: false,
-        scaleControl: false,
         zoomControl: true,
-        gestureHandling: 'greedy',
-        backgroundColor: '#e9ecef'
+        attributionControl: true,
+        preferCanvas: true
       });
 
-      map.addListener('dragstart', () => {
+      tileLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors'
+      }).addTo(map);
+
+      tileLayer.on('tileerror', () => {
+        setMapStatus('Map tiles load nahi ho rahe. Internet check karo.', true);
+      });
+
+      map.on('movestart', () => {
         setMapStatus('Pin move ho raha hai…');
         updateSelectedAddress('', true);
       });
-      map.addListener('idle', queueReverseGeocode);
+      map.on('moveend zoomend', queueReverseGeocode);
     } else {
-      map.setCenter(center);
-      map.setZoom(DEFAULT_ZOOM);
-      google.maps.event.trigger(map, 'resize');
+      map.setView([center.lat, center.lng], DEFAULT_ZOOM, { animate: false });
     }
 
     selectedCoordinates = {
       latitude: Number(center.lat),
       longitude: Number(center.lng)
     };
+    updateAccuracyCircle([center.lat, center.lng], gpsAccuracy);
     setMapLoading(false);
+    window.setTimeout(() => map.invalidateSize({ pan: false }), 50);
     queueReverseGeocode();
   }
 
@@ -302,14 +354,12 @@
     try {
       await initializeMap({ lat: coordinates.latitude, lng: coordinates.longitude });
     } catch (error) {
-      console.error('Google Maps picker failed:', error);
+      console.error('Free map picker failed:', error);
       closePicker();
       setAddressFieldsMode('manual');
 
       if (typeof requestCustomerLocation === 'function') {
-        showToast(error?.message === 'MAPS_NOT_CONFIGURED'
-          ? 'Google Maps key setup pending. Current location flow use ho raha hai.'
-          : 'Google Maps load nahi hua. Current location flow use ho raha hai.', true);
+        showToast('Free map load nahi hua. Current location flow use ho raha hai.', true);
         requestCustomerLocation();
       } else {
         byId('manualAddressBox')?.classList.remove('hidden');
@@ -378,12 +428,12 @@
 
     navigator.geolocation.getCurrentPosition(({ coords }) => {
       gpsAccuracy = Math.round(coords.accuracy || 0);
-      const center = {
-        lat: Number(coords.latitude.toFixed(6)),
-        lng: Number(coords.longitude.toFixed(6))
-      };
-      map?.panTo(center);
-      map?.setZoom(DEFAULT_ZOOM);
+      const center = [
+        Number(coords.latitude.toFixed(6)),
+        Number(coords.longitude.toFixed(6))
+      ];
+      map?.setView(center, DEFAULT_ZOOM, { animate: true });
+      updateAccuracyCircle(center, gpsAccuracy);
       if (button) button.disabled = false;
     }, (error) => {
       setMapStatus(geolocationErrorMessage(error), true);
@@ -395,30 +445,44 @@
     });
   }
 
-  function searchAddress(event) {
+  async function searchAddress(event) {
     event.preventDefault();
     const input = byId('qkMapSearchInput');
     const query = input?.value?.trim();
-    if (!query || !geocoder || !map) return;
+    if (!query || !map) return;
 
     const submitButton = event.currentTarget.querySelector('button[type="submit"]');
     if (submitButton) submitButton.disabled = true;
     setMapStatus('Location search ho rahi hai…');
 
-    geocoder.geocode({ address: `${query}, India`, region: 'IN' }, (results, status) => {
-      if (submitButton) submitButton.disabled = false;
-      if (status !== 'OK' || !results?.[0]?.geometry?.location) {
+    try {
+      const results = await nominatimFetch('/search', {
+        format: 'jsonv2',
+        q: query,
+        countrycodes: 'in',
+        addressdetails: '1',
+        limit: '5'
+      });
+      const result = Array.isArray(results) ? results[0] : null;
+      const latitude = Number(result?.lat);
+      const longitude = Number(result?.lon);
+
+      if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
         setMapStatus('Location nahi mili. Area ya landmark ka naam dobara likho.', true);
         return;
       }
 
-      const result = results[0];
-      map.panTo(result.geometry.location);
-      map.setZoom(DEFAULT_ZOOM);
-      selectedAddress = result.formatted_address || query;
+      map.setView([latitude, longitude], DEFAULT_ZOOM, { animate: true });
+      selectedAddress = result.display_name || query;
+      selectedCoordinates = { latitude, longitude };
       updateSelectedAddress(selectedAddress, false);
       setMapStatus('Pin ko exact building par adjust karo.');
-    });
+    } catch (error) {
+      console.warn('OpenStreetMap search failed:', error);
+      setMapStatus('Location search abhi available nahi hai. Map ko manually move karo.', true);
+    } finally {
+      if (submitButton) submitButton.disabled = false;
+    }
   }
 
   function confirmMapLocation() {
@@ -437,7 +501,7 @@
 
     localStorage.setItem('qkLocationCoords', JSON.stringify(coordinatePayload));
     localStorage.setItem('qkDetectedLocation', address);
-    localStorage.setItem('qkLocationSource', 'google_maps_picker');
+    localStorage.setItem('qkLocationSource', 'openstreetmap_picker');
     localStorage.setItem('qkAddressDetails', JSON.stringify({
       formattedAddress: address,
       latitude: coordinatePayload.latitude,
@@ -445,7 +509,7 @@
       accuracy: coordinatePayload.accuracy,
       houseOrFlat: '',
       landmark: '',
-      source: 'google_maps_picker',
+      source: 'openstreetmap_picker',
       updatedAt: Date.now()
     }));
 
