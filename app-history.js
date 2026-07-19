@@ -104,13 +104,27 @@
 })();
 
 (() => {
-  const PICKER_VERSION = '20260719-openstreetmap-complete-address-3';
+  const PICKER_VERSION = '20260719-openstreetmap-visible-confirm-4';
+
+  function loadPolishScript() {
+    if (document.querySelector('script[src^="location-map-ui-polish.js"]')) return;
+    const polishScript = document.createElement('script');
+    polishScript.src = `location-map-ui-polish.js?v=${PICKER_VERSION}`;
+    polishScript.async = false;
+    document.body.appendChild(polishScript);
+  }
 
   function loadDetailsScript() {
-    if (document.querySelector('script[src^="location-map-details.js"]')) return;
+    const existingDetailsScript = document.querySelector('script[src^="location-map-details.js"]');
+    if (existingDetailsScript) {
+      loadPolishScript();
+      return;
+    }
+
     const detailsScript = document.createElement('script');
     detailsScript.src = `location-map-details.js?v=${PICKER_VERSION}`;
     detailsScript.async = false;
+    detailsScript.addEventListener('load', loadPolishScript, { once: true });
     document.body.appendChild(detailsScript);
   }
 
