@@ -104,7 +104,7 @@
 })();
 
 (() => {
-  const PICKER_VERSION = '20260719-openstreetmap-details-2';
+  const PICKER_VERSION = '20260719-openstreetmap-details-3';
 
   function loadDetailsScript() {
     if (document.querySelector('script[src^="location-map-details.js"]')) return;
