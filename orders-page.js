@@ -439,9 +439,6 @@
         const now = firebase.firestore.FieldValue.serverTimestamp();
         transaction.update(orderRef, {
           status: 'cancelled',
-          cancelledBy: 'customer',
-          cancellationReason: 'Cancelled by customer before rider assignment',
-          cancelledFromStatus: latestOrder.status,
           cancelledAt: now,
           updatedAt: now
         });
@@ -450,7 +447,6 @@
       const localOrder = state.orders.find((order) => order.id === orderId);
       if (localOrder) {
         localOrder.status = 'cancelled';
-        localOrder.cancelledBy = 'customer';
       }
       sheet.classList.remove('show');
       pendingCancelOrderId = null;
