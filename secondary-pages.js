@@ -4,8 +4,22 @@
   const LANGUAGE_KEY = 'qkProfileLanguage';
   const SECONDARY_TABS = new Set(['orders', 'track', 'ai', 'profile']);
   const TITLES = {
-    English: { orders: 'Orders', track: 'Track', ai: 'BuyQK AI', profile: 'Profile', back: 'Back to Dark Store' },
-    Hindi: { orders: 'ऑर्डर', track: 'ट्रैक', ai: 'BuyQK AI', profile: 'प्रोफाइल', back: 'डार्क स्टोर पर वापस जाएं' }
+    English: {
+      orders: 'Orders',
+      orderDetailBack: 'Back to all orders',
+      track: 'Track',
+      ai: 'BuyQK AI',
+      profile: 'Profile',
+      back: 'Back to Dark Store'
+    },
+    Hindi: {
+      orders: 'ऑर्डर',
+      orderDetailBack: 'सभी ऑर्डर पर वापस जाएं',
+      track: 'ट्रैक',
+      ai: 'BuyQK AI',
+      profile: 'प्रोफाइल',
+      back: 'डार्क स्टोर पर वापस जाएं'
+    }
   };
 
   let main = null;
@@ -37,11 +51,21 @@
     if (darkStoreButton) darkStoreButton.click();
   }
 
+  function goBack() {
+    if (getActiveTab() === 'orders' && main?.dataset.orderDetail === 'true') {
+      document.dispatchEvent(new CustomEvent('qk:ordersback'));
+      return;
+    }
+    goToDarkStore();
+  }
+
   function ensureHeader(tab) {
     if (!main || !SECONDARY_TABS.has(tab)) return;
 
     let header = main.querySelector(':scope > [data-secondary-header="true"]');
-    const expectedTitle = TITLES[getLanguage()][tab];
+    const text = TITLES[getLanguage()];
+    const orderDetailOpen = tab === 'orders' && main.dataset.orderDetail === 'true';
+    const expectedTitle = orderDetailOpen ? text.orderDetailBack : text[tab];
 
     if (!header) {
       main.insertAdjacentHTML('afterbegin', headerMarkup(tab));
@@ -53,10 +77,10 @@
 
     const backButton = header?.querySelector('.secondary-back');
     if (backButton) {
-      backButton.setAttribute('aria-label', TITLES[getLanguage()].back);
+      backButton.setAttribute('aria-label', orderDetailOpen ? text.orderDetailBack : text.back);
       if (!backButton.dataset.bound) {
         backButton.dataset.bound = 'true';
-        backButton.addEventListener('click', goToDarkStore);
+        backButton.addEventListener('click', goBack);
       }
     }
   }

@@ -195,10 +195,6 @@
     return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>';
   }
 
-  function backIcon() {
-    return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>';
-  }
-
   function pinIcon() {
     return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s6-6.2 6-11a6 6 0 1 0-12 0c0 4.8 6 11 6 11Z"/><circle cx="12" cy="10" r="2"/></svg>';
   }
@@ -486,7 +482,6 @@
 
     return `<div class="view qk-orders-view qk-order-detail-view">
       <div class="qk-orders-scroll">
-        <button class="qk-orders-back" type="button" data-orders-back>${backIcon()}<span>Back to all orders</span></button>
         <section class="qk-order-detail-hero ${meta.tone}">
           <span class="qk-order-detail-icon">${statusIcon(meta.tone)}</span>
           <div><small>${escapeValue(storeName(order))}</small><strong>${escapeValue(meta.title)}</strong><p>${escapeValue(meta.description)}</p></div>
@@ -534,6 +529,7 @@
     const orders = Array.isArray(state?.orders) ? state.orders : [];
     const selected = selectedOrderId ? orders.find((order) => order.id === selectedOrderId) : null;
     if (selectedOrderId && !selected) selectedOrderId = null;
+    main.dataset.orderDetail = selected ? 'true' : 'false';
     main.innerHTML = selected ? detailMarkup(selected) : listMarkup(orders);
     const scroll = main.querySelector('.qk-orders-scroll');
     if (scroll) scroll.scrollTop = 0;
@@ -572,11 +568,13 @@
       return;
     }
 
-    if (event.target.closest('[data-orders-back]')) {
-      selectedOrderId = null;
-      renderOrders();
-    }
   }, true);
+
+  document.addEventListener('qk:ordersback', () => {
+    if (!selectedOrderId) return;
+    selectedOrderId = null;
+    renderOrders();
+  });
 
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') closeCancelSheet();
