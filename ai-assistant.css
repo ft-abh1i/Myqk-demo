@@ -443,10 +443,18 @@ body.qk-ai-input-focused #bottomNav {
   display: none !important;
 }
 
+body[data-secondary-tab="ai"].qk-ai-input-focused {
+  height: var(--qk-ai-layout-height, 100dvh);
+  min-height: var(--qk-ai-layout-height, 100dvh);
+  max-height: var(--qk-ai-layout-height, 100dvh);
+}
+
 body[data-secondary-tab="ai"].qk-ai-input-focused #app {
   height: var(--qk-ai-viewport-height, 100dvh);
   min-height: var(--qk-ai-viewport-height, 100dvh);
   max-height: var(--qk-ai-viewport-height, 100dvh);
+  transform: translate3d(0, var(--qk-ai-viewport-offset-top, 0px), 0);
+  transform-origin: top center;
 }
 
 body[data-secondary-tab="ai"].qk-ai-input-focused .app-main {
@@ -475,6 +483,13 @@ body[data-secondary-tab="ai"].qk-ai-input-focused .ai-form {
 body[data-secondary-tab="ai"].qk-ai-keyboard-open .secondary-topbar {
   padding-top: 8px;
   padding-bottom: 8px;
+}
+
+/* iOS zooms focused form controls below 16px, which also pans the chat page. */
+@supports (-webkit-touch-callout: none) {
+  .ai-form textarea {
+    font-size: 16px;
+  }
 }
 
 @media (max-height: 720px) {

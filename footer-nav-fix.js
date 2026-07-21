@@ -17,12 +17,13 @@ const aiQuickPrompts = [
 ];
 let aiRequestInFlight = false;
 let aiViewportBaseline = 0;
+let aiWindowScrollTop = 0;
 
 function ensureAiStylesheet() {
   if (document.querySelector('link[href^="ai-assistant.css"]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = 'ai-assistant.css?v=20260719-ai-cart-1';
+  link.href = 'ai-assistant.css?v=20260721-ios-keyboard-1';
   document.head.appendChild(link);
 }
 
@@ -296,13 +297,18 @@ function currentAiViewportHeight() {
 function syncAiKeyboardLayout() {
   const input = document.getElementById('aiInput');
   const focused = Boolean(input && document.activeElement === input);
+  const visualViewport = window.visualViewport;
   const viewportHeight = currentAiViewportHeight();
+  const viewportOffsetTop = Math.max(0, Math.round(visualViewport?.offsetTop || 0));
 
   if (!focused && viewportHeight > aiViewportBaseline) aiViewportBaseline = viewportHeight;
   if (!aiViewportBaseline) aiViewportBaseline = viewportHeight;
 
   const heightLoss = Math.max(0, aiViewportBaseline - viewportHeight);
+  const layoutHeight = Math.max(aiViewportBaseline, viewportHeight + viewportOffsetTop);
   document.documentElement.style.setProperty('--qk-ai-viewport-height', `${viewportHeight}px`);
+  document.documentElement.style.setProperty('--qk-ai-viewport-offset-top', `${focused ? viewportOffsetTop : 0}px`);
+  document.documentElement.style.setProperty('--qk-ai-layout-height', `${layoutHeight}px`);
   document.body.classList.toggle('qk-ai-input-focused', focused);
   document.body.classList.toggle('qk-ai-keyboard-open', focused && heightLoss > 100);
 
@@ -316,6 +322,14 @@ function syncAiKeyboardLayout() {
 function clearAiKeyboardLayout() {
   document.body.classList.remove('qk-ai-input-focused', 'qk-ai-keyboard-open');
   document.documentElement.style.removeProperty('--qk-ai-viewport-height');
+  document.documentElement.style.removeProperty('--qk-ai-viewport-offset-top');
+  document.documentElement.style.removeProperty('--qk-ai-layout-height');
+
+  window.requestAnimationFrame(() => {
+    if (Math.abs(window.scrollY - aiWindowScrollTop) > 1) {
+      window.scrollTo({ top: aiWindowScrollTop, left: 0, behavior: 'auto' });
+    }
+  });
 }
 
 function setAiBusy(busy) {
@@ -459,10 +473,13 @@ document.addEventListener('input', (event) => {
 
 document.addEventListener('focusin', (event) => {
   if (event.target?.id !== 'aiInput') return;
+  aiWindowScrollTop = window.scrollY;
   aiViewportBaseline = Math.max(aiViewportBaseline, currentAiViewportHeight());
   document.body.classList.add('qk-ai-input-focused');
+  syncAiKeyboardLayout();
   window.setTimeout(syncAiKeyboardLayout, 50);
   window.setTimeout(syncAiKeyboardLayout, 250);
+  window.setTimeout(syncAiKeyboardLayout, 450);
 });
 
 document.addEventListener('focusout', (event) => {
@@ -489,6 +506,7 @@ document.addEventListener('click', (event) => {
 
 window.visualViewport?.addEventListener('resize', syncAiKeyboardLayout);
 window.visualViewport?.addEventListener('scroll', syncAiKeyboardLayout);
+window.visualViewport?.addEventListener('scrollend', syncAiKeyboardLayout);
 window.addEventListener('resize', syncAiKeyboardLayout);
 
 document.addEventListener('DOMContentLoaded', () => {
