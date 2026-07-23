@@ -7,6 +7,7 @@ const output = path.join(root, 'dist');
 const excludedTopLevel = new Set([
   '.git',
   '.github',
+  'api',
   'dist',
   'node_modules',
   'scripts',
@@ -18,7 +19,7 @@ const excludedTopLevel = new Set([
   'vercel.json',
 ]);
 const staticExtensions = new Set([
-  '.css', '.js', '.mjs', '.cjs', '.json', '.webmanifest',
+  '.css', '.json', '.webmanifest',
   '.png', '.jpg', '.jpeg', '.webp', '.gif', '.svg', '.ico', '.avif',
   '.woff', '.woff2', '.ttf', '.otf', '.eot', '.mp3', '.mp4', '.webm',
 ]);
@@ -44,4 +45,4 @@ async function copyDirectory(source, destination, isTopLevel = false) {
 }
 
 await copyDirectory(root, output, true);
-console.log('Copied legacy CSS, JavaScript, images and font assets into dist.');
+console.log('Copied static CSS, image, manifest and font assets into dist.');
