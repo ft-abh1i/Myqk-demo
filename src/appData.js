@@ -123,6 +123,75 @@ export function readCoordinates() {
   }
 }
 
+export function coordinatesFrom(value) {
+  if (!value || typeof value !== 'object') return null;
+  const latitude = Number(value.latitude ?? value.lat);
+  const longitude = Number(value.longitude ?? value.lng);
+  if (!Number.isFinite(latitude)
+    || !Number.isFinite(longitude)
+    || latitude < -90
+    || latitude > 90
+    || longitude < -180
+    || longitude > 180) return null;
+  return { latitude, longitude };
+}
+
+export function distanceKm(first, second) {
+  const from = coordinatesFrom(first);
+  const to = coordinatesFrom(second);
+  if (!from || !to) return Infinity;
+  const radians = (value) => value * Math.PI / 180;
+  const latitudeDistance = radians(to.latitude - from.latitude);
+  const longitudeDistance = radians(to.longitude - from.longitude);
+  const calculation = Math.sin(latitudeDistance / 2) ** 2
+    + Math.cos(radians(from.latitude))
+    * Math.cos(radians(to.latitude))
+    * Math.sin(longitudeDistance / 2) ** 2;
+  return 6371 * 2 * Math.atan2(Math.sqrt(calculation), Math.sqrt(1 - calculation));
+}
+
+export function projectTrackPoints({ pickup, rider, drop }) {
+  const source = {
+    pickup: coordinatesFrom(pickup),
+    rider: coordinatesFrom(rider),
+    drop: coordinatesFrom(drop),
+  };
+  const valid = Object.values(source).filter(Boolean);
+  if (valid.length < 2) {
+    return {
+      pickup: { x: 18, y: 56 },
+      rider: { x: 47, y: 44 },
+      drop: { x: 84, y: 19 },
+      live: false,
+    };
+  }
+
+  const latitudes = valid.map((point) => point.latitude);
+  const longitudes = valid.map((point) => point.longitude);
+  const minLatitude = Math.min(...latitudes);
+  const maxLatitude = Math.max(...latitudes);
+  const minLongitude = Math.min(...longitudes);
+  const maxLongitude = Math.max(...longitudes);
+  const latitudeSpan = Math.max(maxLatitude - minLatitude, 0.001);
+  const longitudeSpan = Math.max(maxLongitude - minLongitude, 0.001);
+  const project = (point, fallback) => point ? {
+    x: 16 + ((point.longitude - minLongitude) / longitudeSpan) * 68,
+    y: 58 - ((point.latitude - minLatitude) / latitudeSpan) * 42,
+  } : fallback;
+
+  const pickupPoint = project(source.pickup, { x: 18, y: 56 });
+  const dropPoint = project(source.drop, { x: 84, y: 19 });
+  return {
+    pickup: pickupPoint,
+    rider: project(source.rider, {
+      x: (pickupPoint.x + dropPoint.x) / 2,
+      y: (pickupPoint.y + dropPoint.y) / 2,
+    }),
+    drop: dropPoint,
+    live: Boolean(source.rider && source.pickup && source.drop),
+  };
+}
+
 export function normalizeAiText(value) {
   let text = String(value || '').trim();
   if (!text) return '';

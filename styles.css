@@ -154,6 +154,7 @@ svg { display: block; fill: none; stroke: currentColor; stroke-width: 2; stroke-
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 
 .cart-overlay { position: fixed; inset: 0; z-index: 60; width: 100%; max-width: 560px; margin: auto; display: flex; flex-direction: column; background: #fff; transform: translateX(100%); transition: transform .26s var(--ease); }
+.cart-overlay:not(.open) { visibility: hidden; pointer-events: none; }
 .cart-overlay.open { transform: none; }
 .overlay-header { padding: 14px 16px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--border); }
 .overlay-header h2 { font-size: 17px; font-weight: 800; }

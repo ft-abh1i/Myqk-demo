@@ -7,12 +7,16 @@ import {
   GROCERY_CATEGORIES,
   NAV_TABS,
   TERMINAL_STATUSES,
+  coordinatesFrom,
+  distanceKm,
   formatOrderDate,
   initials,
   money,
   normalizeAiText,
   orderItemCount,
   orderNumber,
+  projectTrackPoints,
+  readCoordinates,
   statusLabel,
   statusMeta,
   statusProgress,
@@ -102,12 +106,15 @@ function GroceryKitchen() {
   );
 }
 
-function HomeView({ stores, loading, search, activeCategory, onCategory, onStore, onNotice }) {
+function HomeView({ stores, products, loading, search, activeCategory, onCategory, onStore, onNotice }) {
   const visibleStores = useMemo(() => {
     const query = search.trim().toLowerCase();
     return stores.filter((store) => (activeCategory === 'all' || store.category === activeCategory)
-      && (!query || `${store.name} ${store.rawCategory} ${store.description}`.toLowerCase().includes(query)));
-  }, [activeCategory, search, stores]);
+      && (!query
+        || `${store.name} ${store.rawCategory} ${store.description}`.toLowerCase().includes(query)
+        || products.some((product) => product.storeId === store.id
+          && `${product.name} ${product.brand} ${product.unit} ${product.category}`.toLowerCase().includes(query))));
+  }, [activeCategory, products, search, stores]);
 
   return (
     <div className="view home-view">
@@ -208,13 +215,22 @@ function TrackView({ order, onBack }) {
   const meta = statusMeta(order.status);
   const rider = order.assignedRiderName || order.riderName || order.rider?.name;
   const riderLocation = order.riderLocation;
+  const riderCoordinates = coordinatesFrom(riderLocation);
+  const trackPoints = projectTrackPoints({
+    pickup: order.pickup?.location || order.pickupLocation,
+    rider: riderLocation,
+    drop: order.drop?.location || order.dropLocation,
+  });
+  const routePoints = [trackPoints.pickup, trackPoints.rider, trackPoints.drop]
+    .map((point) => `${point.x.toFixed(1)},${point.y.toFixed(1)}`)
+    .join(' ');
   const phone = String(order.assignedRiderPhone || order.riderPhone || order.rider?.phone || '').replace(/[^\d+]/g, '');
   return (
     <>
       <SecondaryHeader title="Track" onBack={onBack} />
       <div className="view qk-track-view">
         <section className="qk-track-hero"><small>ORDER #{orderNumber(order)}</small><strong>{meta.title}</strong><p>{meta.description}</p><div className="qk-track-progress"><span style={{ width: `${statusProgress(order.status)}%` }} /></div><div className="qk-track-progress-meta"><span>{order.storeName || 'BuyQK Store'}</span><b>{statusProgress(order.status)}%</b></div></section>
-        <section className="qk-track-map-card"><div className="qk-track-map-head"><div><strong>{riderLocation ? 'Live delivery map' : 'Delivery route'}</strong><span>{riderLocation ? 'Rider location received' : 'Location will update here'}</span></div><span className={`qk-track-live-pill ${riderLocation ? 'is-live' : ''}`}><i />{riderLocation ? 'LIVE' : 'PREVIEW'}</span></div><div className="qk-track-map-shell"><div className="qk-track-map"><svg viewBox="0 0 100 72" role="img" aria-label="Store, delivery partner and delivery location"><defs><pattern id="qkTrackGridReact" width="9" height="9" patternUnits="userSpaceOnUse"><path d="M9 0H0V9" fill="none" stroke="#dfe9e3" strokeWidth=".45" /></pattern></defs><rect width="100" height="72" fill="url(#qkTrackGridReact)"/><path className="qk-track-road" d="M-4 18C20 28 22 5 48 14S77 36 104 22"/><path className="qk-track-road" d="M4 68C27 48 43 66 59 49S79 38 101 44"/><polyline className="qk-track-route-line" points="18,56 47,44 84,19"/><g className="qk-track-marker store" transform="translate(18 56)"><circle r="5.4"/><text textAnchor="middle" y="1.7">S</text></g>{rider ? <g className="qk-track-marker rider" transform="translate(47 44)"><circle r="5.4"/><text textAnchor="middle" y="1.7">R</text></g> : null}<g className="qk-track-marker home" transform="translate(84 19)"><circle r="5.4"/><text textAnchor="middle" y="1.7">H</text></g></svg></div></div><div className="qk-track-map-foot"><div><small>ESTIMATED ARRIVAL</small><strong>{order.estimatedArrival || (order.status === 'picked_up' ? 'Arriving soon' : 'Updating shortly')}</strong></div><div><small>TRACKING</small><strong>{rider ? 'Partner assigned' : 'Starts after assignment'}</strong></div></div></section>
+        <section className="qk-track-map-card"><div className="qk-track-map-head"><div><strong>{riderCoordinates ? 'Live delivery map' : 'Delivery route'}</strong><span>{riderCoordinates ? 'Rider position updates automatically' : 'Location will update here'}</span></div><span className={`qk-track-live-pill ${riderCoordinates ? 'is-live' : ''}`}><i />{riderCoordinates ? 'LIVE' : 'PREVIEW'}</span></div><div className="qk-track-map-shell"><div className="qk-track-map"><svg viewBox="0 0 100 72" role="img" aria-label="Store, delivery partner and delivery location"><defs><pattern id="qkTrackGridReact" width="9" height="9" patternUnits="userSpaceOnUse"><path d="M9 0H0V9" fill="none" stroke="#dfe9e3" strokeWidth=".45" /></pattern></defs><rect width="100" height="72" fill="url(#qkTrackGridReact)"/><path className="qk-track-road" d="M-4 18C20 28 22 5 48 14S77 36 104 22"/><path className="qk-track-road" d="M4 68C27 48 43 66 59 49S79 38 101 44"/><polyline className="qk-track-route-line" points={routePoints}/><g className="qk-track-marker store" transform={`translate(${trackPoints.pickup.x} ${trackPoints.pickup.y})`}><circle r="5.4"/><text textAnchor="middle" y="1.7">S</text></g>{rider ? <g className="qk-track-marker rider" transform={`translate(${trackPoints.rider.x} ${trackPoints.rider.y})`}><circle r="5.4"/><text textAnchor="middle" y="1.7">R</text></g> : null}<g className="qk-track-marker home" transform={`translate(${trackPoints.drop.x} ${trackPoints.drop.y})`}><circle r="5.4"/><text textAnchor="middle" y="1.7">H</text></g></svg></div></div><div className="qk-track-map-foot"><div><small>ESTIMATED ARRIVAL</small><strong>{order.estimatedArrival || (order.status === 'picked_up' ? 'Arriving soon' : 'Updating shortly')}</strong></div><div><small>TRACKING</small><strong>{rider ? 'Partner assigned' : 'Starts after assignment'}</strong></div></div></section>
         {rider ? <section className="qk-track-card qk-track-rider-card"><span className="qk-track-rider-avatar">{initials(rider)}</span><div><small>YOUR DELIVERY PARTNER</small><strong>{rider}</strong><p><span className="qk-track-verified-dot" />Verified BuyQK partner</p></div>{phone ? <a href={`tel:${phone}`} aria-label="Call delivery partner"><svg viewBox="0 0 24 24"><path d="M8.5 4.5 6 6c-.8.5-.8 1.3-.5 2.2 1.5 4.7 5.6 8.8 10.3 10.3.9.3 1.7.3 2.2-.5l1.5-2.5-4-2-1.3 1.7c-2.4-1-4.4-3-5.4-5.4l1.7-1.3-2-4Z"/></svg></a> : null}</section> : null}
         <section className="qk-track-card"><small>DELIVERING TO</small><strong>{order.drop?.name || order.customerName || 'Customer'}</strong><p>{order.drop?.address || order.deliveryAddress || 'Your saved delivery address'}</p></section>
       </div>
@@ -222,7 +238,7 @@ function TrackView({ order, onBack }) {
   );
 }
 
-function ProfileView({ onBack, customerProfile, saveProfile, onNotice }) {
+function ProfileView({ onBack, customerProfile, saveProfile, onLogout, onNotice }) {
   const [language, setLanguage] = useState(() => localStorage.getItem('qkProfileLanguage') === 'Hindi' ? 'Hindi' : 'English');
   const [name, setName] = useState(() => localStorage.getItem('qkProfileName') || '');
   const [phone, setPhone] = useState(() => localStorage.getItem('qkProfilePhone') || '');
@@ -246,17 +262,33 @@ function ProfileView({ onBack, customerProfile, saveProfile, onNotice }) {
   const handleSave = async () => {
     if (locked) return setLocked(false);
     if (phone && !/^[6-9]\d{9}$/.test(phone)) return onNotice(text.invalid, true);
-    localStorage.setItem('qkProfileName', name.trim());
-    localStorage.setItem('qkProfilePhone', phone);
-    localStorage.setItem('qkProfileEmail', email.trim());
-    try { await saveProfile({ name, phone, email, address: localStorage.getItem('qkLiveLocation') || '' }); } catch (error) { console.warn(error); }
-    setLocked(true);
-    onNotice(text.saved);
+    try {
+      await saveProfile({
+        name,
+        phone,
+        email,
+        address: localStorage.getItem('qkLiveLocation') || '',
+      });
+      localStorage.setItem('qkProfileName', name.trim());
+      localStorage.setItem('qkProfilePhone', phone);
+      localStorage.setItem('qkProfileEmail', email.trim());
+      setLocked(true);
+      onNotice(text.saved);
+    } catch (error) {
+      console.error(error);
+      onNotice('Profile could not be saved. Try again.', true);
+    }
   };
 
-  const logout = () => {
+  const logout = async () => {
     ['qkProfileName', 'qkProfilePhone', 'qkProfileEmail'].forEach((key) => localStorage.removeItem(key));
-    setName(''); setPhone(''); setEmail(''); setLocked(false); onNotice(text.cleared);
+    try {
+      await onLogout();
+      setName(''); setPhone(''); setEmail(''); setLocked(false); onNotice(text.cleared);
+    } catch (error) {
+      console.error(error);
+      onNotice('Logout failed. Please try again.', true);
+    }
   };
 
   return (
@@ -281,7 +313,7 @@ function AiProductCard({ product, storeName, quantity, onAdd, onChange }) {
   return <article className="ai-product-card"><div className="ai-product-image"><img src={product.image} alt={product.name} loading="lazy"/><span>AI PICK</span></div><div className="ai-product-info"><small>{storeName}</small><strong>{product.name}</strong><p>{[product.brand, product.unit].filter(Boolean).join(' · ') || 'Available now'}</p><div className="ai-product-footer"><b>{money(product.price)}</b>{quantity ? <div className="ai-product-quantity"><button type="button" onClick={() => onChange(product.key, -1)}>−</button><strong>{quantity}</strong><button type="button" onClick={() => onChange(product.key, 1)}>+</button></div> : <button className="ai-product-add" type="button" onClick={() => onAdd(product)}><span>ADD</span><b>+</b></button>}</div></div></article>;
 }
 
-function AiView({ onBack, stores, products, cart, orders, location, onAdd, onChange }) {
+function AiView({ onBack, user, stores, products, cart, orders, location, onAdd, onChange }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
@@ -304,7 +336,9 @@ function AiView({ onBack, stores, products, cart, orders, location, onAdd, onCha
     setMessages((current) => [...current, { role: 'user', content: text }, { role: 'assistant', content: 'Thinking…' }]);
     setInput(''); setBusy(true);
     try {
-      const response = await fetch('/api/buyqk-ai', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: text, history, context: { app: 'BuyQK customer app', deliveryLocation: location || 'Not selected', appRules: { orderFlow: 'Choose one store, add products, open cart, enter receiver name and phone, select delivery location, then place the order.', oneStorePerOrder: true, paymentMode: 'Cash on Delivery' }, cart: Object.values(cart).map(({ product, quantity }) => ({ name: product.name, unit: product.unit, price: product.price, quantity, storeId: product.storeId })), orders: orders.slice(0, 8).map((order) => ({ orderNumber: orderNumber(order), storeName: order.storeName, status: statusLabel(order.status), itemCount: orderItemCount(order), totalAmount: order.totalAmount })), catalog: { stores: stores.slice(0, 15), products: products.slice(0, 80).map(({ id, name, brand, unit, category, price, storeId }) => ({ id, name, brand, unit, category, price, storeId, available: true })) } } }) });
+      const token = await user?.getIdToken();
+      if (!token) throw new Error('AUTH_REQUIRED');
+      const response = await fetch('/api/buyqk-ai', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ message: text, history, context: { app: 'BuyQK customer app', deliveryLocation: location || 'Not selected', appRules: { orderFlow: 'Choose one store, add products, open cart, enter receiver name and phone, select delivery location, then place the order.', oneStorePerOrder: true, paymentMode: 'Cash on Delivery' }, cart: Object.values(cart).map(({ product, quantity }) => ({ name: product.name, unit: product.unit, price: product.price, quantity, storeId: product.storeId })), orders: orders.slice(0, 8).map((order) => ({ orderNumber: orderNumber(order), storeName: order.storeName, status: statusLabel(order.status), itemCount: orderItemCount(order), totalAmount: order.totalAmount })), catalog: { stores: stores.slice(0, 15), products: products.slice(0, 80).map(({ id, name, brand, unit, category, price, storeId }) => ({ id, name, brand, unit, category, price, storeId, available: true })) } } }) });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || 'AI is temporarily unavailable.');
       const reply = normalizeAiText(data.reply);
@@ -331,7 +365,7 @@ function CartOverlay({ open, cart, customerName, customerPhone, placing, onClose
   const platformFee = items.length ? 3 : 0;
   const total = subtotal + deliveryFee + platformFee;
   return (
-    <section className={`cart-overlay ${open ? 'open' : ''}`} id="cartOverlay" aria-label="Cart">
+    <section className={`cart-overlay ${open ? 'open' : ''}`} id="cartOverlay" aria-label="Cart" aria-hidden={!open}>
       <div className="overlay-header"><button className="round-back" id="cartClose" type="button" aria-label="Close cart" onClick={onClose}><svg viewBox="0 0 24 24"><path d="m15 19-7-7 7-7"/></svg></button><h2>Your Cart</h2></div>
       <div className="cart-body" id="cartBody">{items.length ? <div className="product-list">{items.map(({ product, quantity }) => <article className="product-card" data-cart-product key={product.key}><div className="product-thumb"><img src={product.image} alt="" /></div><div className="product-info"><div className="product-name">{product.name}</div><div className="product-unit">{product.unit}</div><div className="product-price">{money(product.price * quantity)}</div><div className="card-actions"><button type="button" onClick={() => onChange(product.key, -1)}>−</button><strong>Qty {quantity}</strong><button type="button" onClick={() => onChange(product.key, 1)}>+</button></div></div></article>)}</div> : <EmptyState icon="🛒" title="Your cart is empty" subtitle="Add products from a merchant store." />}</div>
       <div className="cart-footer" id="cartFooter" style={{ display: items.length ? '' : 'none' }}><section className="customer-details-card" aria-labelledby="customerDetailsTitle"><div className="checkout-section-head"><div><small>DELIVERY DETAILS</small><strong id="customerDetailsTitle">Who should receive this order?</strong></div><span>Required</span></div><label className="checkout-field"><span>Full name</span><input id="customerNameInput" type="text" maxLength="60" autoComplete="name" placeholder="Enter your name" value={customerName} onChange={(event) => onName(event.target.value)} /></label><label className="checkout-field"><span>Phone number</span><input id="customerPhoneInput" type="tel" inputMode="numeric" maxLength="10" autoComplete="tel" placeholder="10-digit mobile number" value={customerPhone} onChange={(event) => onPhone(event.target.value.replace(/\D/g, '').slice(0, 10))} /></label><p className="checkout-hint">Your order will be sent directly to the selected merchant.</p></section><section className="bill-details-card" aria-label="Bill details"><div className="checkout-section-head"><div><small>PAYMENT SUMMARY</small><strong>Bill details</strong></div></div><div className="bill-row"><span>Item subtotal</span><strong id="cartSubtotal">{money(subtotal)}</strong></div><div className="bill-row"><span>Delivery fee</span><strong id="cartDeliveryFee">{deliveryFee ? money(deliveryFee) : 'FREE'}</strong></div><div className="bill-row"><span>Platform fee</span><strong id="cartPlatformFee">{money(platformFee)}</strong></div><div className="bill-row bill-total"><span>To pay</span><strong id="cartPayable">{money(total)}</strong></div></section><div className="cart-total"><span>Total</span><strong id="cartTotal">{money(total)}</strong></div><button className="checkout-btn" id="checkoutBtn" type="button" disabled={placing} onClick={onCheckout}>{placing ? 'Placing order…' : 'Place order'}</button></div>
@@ -339,8 +373,8 @@ function CartOverlay({ open, cart, customerName, customerPhone, placing, onClose
   );
 }
 
-function LocationSheet({ open, savedLocation, detected, detecting, manualVisible, house, street, onClose, onDetect, onHouse, onStreet, onSave }) {
-  return <section className={`sheet ${open ? 'show' : ''}`} id="locationSheet" role="dialog" aria-modal="true" aria-labelledby="locationTitle"><div className="sheet-panel"><div className="sheet-head"><h2 id="locationTitle">Select location</h2><button className="sheet-close" id="locationClose" type="button" aria-label="Close location sheet" onClick={onClose}>×</button></div><button className={`location-access-btn ${detected ? 'hidden' : ''}`} id="allowLocationBtn" type="button" disabled={detecting} onClick={onDetect}>{detecting ? 'Detecting location…' : 'Give location access'}</button><div className={`detected-location ${detected ? '' : 'hidden'}`} id="detectedLocationBox"><small>DETECTED LOCATION</small><strong id="detectedLocationText">{detected}</strong></div><div className={`manual-address ${manualVisible ? '' : 'hidden'}`} id="manualAddressBox"><p>Add exact address</p><input id="houseInput" type="text" placeholder="House / Flat / Floor" autoComplete="address-line1" value={house} onChange={(event) => onHouse(event.target.value)} /><input id="streetInput" type="text" placeholder="Street / Area / Landmark" autoComplete="address-line2" value={street} onChange={(event) => onStreet(event.target.value)} /><button className="save-address-btn" id="saveAddressBtn" type="button" onClick={onSave}>Save address</button></div><p className="location-status" id="locationStatus">{savedLocation ? 'Your delivery address is saved.' : 'Tap Give location access to detect your area.'}</p></div></section>;
+function LocationSheet({ open, savedLocation, detected, detecting, saving, manualVisible, house, street, onClose, onDetect, onHouse, onStreet, onSave }) {
+  return <section className={`sheet ${open ? 'show' : ''}`} id="locationSheet" role="dialog" aria-modal="true" aria-labelledby="locationTitle"><div className="sheet-panel"><div className="sheet-head"><h2 id="locationTitle">Select location</h2><button className="sheet-close" id="locationClose" type="button" aria-label="Close location sheet" onClick={onClose}>×</button></div><button className={`location-access-btn ${detected ? 'hidden' : ''}`} id="allowLocationBtn" type="button" disabled={detecting || saving} onClick={onDetect}>{detecting ? 'Detecting location…' : 'Give location access'}</button><div className={`detected-location ${detected ? '' : 'hidden'}`} id="detectedLocationBox"><small>DETECTED LOCATION</small><strong id="detectedLocationText">{detected}</strong></div><div className={`manual-address ${manualVisible ? '' : 'hidden'}`} id="manualAddressBox"><p>Add exact address</p><input id="houseInput" type="text" placeholder="House / Flat / Floor" autoComplete="address-line1" value={house} onChange={(event) => onHouse(event.target.value)} /><input id="streetInput" type="text" placeholder="Street / Area / Landmark" autoComplete="address-line2" value={street} onChange={(event) => onStreet(event.target.value)} /><button className="save-address-btn" id="saveAddressBtn" type="button" disabled={saving} onClick={onSave}>{saving ? 'Verifying address…' : 'Save address'}</button></div><p className="location-status" id="locationStatus">{savedLocation ? 'Your delivery address is saved.' : 'Use GPS or add an address that can be verified on the map.'}</p></div></section>;
 }
 
 export default function App() {
@@ -354,6 +388,7 @@ export default function App() {
   const [location, setLocation] = useState(() => localStorage.getItem('qkLiveLocation') || '');
   const [detected, setDetected] = useState(() => localStorage.getItem('qkDetectedLocation') || '');
   const [detecting, setDetecting] = useState(false);
+  const [savingAddress, setSavingAddress] = useState(false);
   const [manualVisible, setManualVisible] = useState(false);
   const [house, setHouse] = useState('');
   const [street, setStreet] = useState('');
@@ -374,7 +409,7 @@ export default function App() {
     toastTimer.current = window.setTimeout(() => setToast((current) => ({ ...current, show: false })), 2600);
   }, []);
 
-  const { stores, products, orders, catalogLoading, customerProfile, saveCustomerProfile, createOrder, cancelOrder } = useMyQKData(showNotice);
+  const { user, stores, products, orders, catalogLoading, customerProfile, saveCustomerProfile, createOrder, cancelOrder, resetCustomerSession } = useMyQKData(showNotice);
   const activeStore = stores.find((store) => store.id === activeStoreId) || null;
   const activeOrder = orders.find((order) => !TERMINAL_STATUSES.has(order.status)) || null;
   const selectedOrder = orders.find((order) => order.id === selectedOrderId) || null;
@@ -416,19 +451,62 @@ export default function App() {
 
   const switchTab = (tab) => { setActiveTab(tab); setSearch(tab === 'darkstore' ? search : ''); };
   const addProduct = (product) => {
+    const current = cart[product.key];
+    const availableStock = Math.max(0, Number(product.stockQuantity) || 0);
+    if (current?.quantity >= availableStock) {
+      showNotice(`Only ${availableStock} ${product.name} available.`, true);
+      return;
+    }
+    const existing = Object.values(cart);
+    const changedStore = existing.length && existing[0].product.storeId !== product.storeId;
     setCart((current) => {
-      const existing = Object.values(current);
-      const next = existing.length && existing[0].product.storeId !== product.storeId ? {} : { ...current };
-      if (existing.length && existing[0].product.storeId !== product.storeId) showNotice('Previous store cart cleared. One store per order.');
+      const currentItems = Object.values(current);
+      const next = currentItems.length && currentItems[0].product.storeId !== product.storeId ? {} : { ...current };
       next[product.key] = { product, quantity: (next[product.key]?.quantity || 0) + 1 };
       return next;
     });
-    showNotice(`${product.name} added to cart`);
+    showNotice(changedStore
+      ? `Previous store cart cleared. ${product.name} added.`
+      : `${product.name} added to cart`);
   };
-  const changeCart = (key, delta) => setCart((current) => { const item = current[key]; if (!item) return current; const quantity = Math.max(0, item.quantity + delta); const next = { ...current }; if (!quantity) delete next[key]; else next[key] = { ...item, quantity }; return next; });
+  const changeCart = (key, delta) => {
+    const item = cart[key];
+    if (!item) return;
+    const availableStock = Math.max(0, Number(item.product.stockQuantity) || 0);
+    if (delta > 0 && item.quantity >= availableStock) {
+      showNotice(`Only ${availableStock} ${item.product.name} available.`, true);
+      return;
+    }
+    setCart((current) => {
+      const currentItem = current[key];
+      if (!currentItem) return current;
+      const quantity = Math.min(availableStock, Math.max(0, currentItem.quantity + delta));
+      const next = { ...current };
+      if (!quantity) delete next[key];
+      else next[key] = { ...currentItem, quantity };
+      return next;
+    });
+  };
 
   const reverseGeocode = async (latitude, longitude) => {
     try { const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(latitude)}&lon=${encodeURIComponent(longitude)}&zoom=18&addressdetails=1`); const data = await response.json(); return data.display_name || `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`; } catch { return `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`; }
+  };
+  const geocodeAddress = async (address) => {
+    const url = new URL('https://nominatim.openstreetmap.org/search');
+    url.searchParams.set('format', 'jsonv2');
+    url.searchParams.set('q', address);
+    url.searchParams.set('limit', '1');
+    url.searchParams.set('countrycodes', 'in');
+    const response = await fetch(url, { headers: { Accept: 'application/json' } });
+    if (!response.ok) throw new Error('Address verification failed.');
+    const [result] = await response.json();
+    const latitude = Number(result?.lat);
+    const longitude = Number(result?.lon);
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+    return {
+      coordinates: { latitude, longitude, accuracy: 0 },
+      displayName: String(result.display_name || address),
+    };
   };
   const detectLocation = () => {
     if (!navigator.geolocation) { setManualVisible(true); return showNotice('Location is not supported on this device.', true); }
@@ -444,10 +522,38 @@ export default function App() {
     const exact = [house.trim(), street.trim()].filter(Boolean).join(', ');
     if (!exact) return showNotice('Add your exact address.', true);
     const full = [exact, detected.trim()].filter(Boolean).join(', ');
-    setLocation(full); localStorage.setItem('qkLiveLocation', full); setLocationOpen(false);
-    if (customerName && customerPhone.length === 10) saveCustomerProfile({ name: customerName, phone: customerPhone, address: full }).catch(() => {});
+    setSavingAddress(true);
+    try {
+      let coordinates = readCoordinates();
+      try {
+        const geocoded = await geocodeAddress(full);
+        if (geocoded) {
+          coordinates = geocoded.coordinates;
+          if (!detected) {
+            setDetected(geocoded.displayName);
+            localStorage.setItem('qkDetectedLocation', geocoded.displayName);
+          }
+        }
+      } catch (error) {
+        console.warn('Manual address geocoding failed:', error);
+      }
+      if (!coordinates) {
+        showNotice('Address could not be verified. Use current location or enter a more complete address.', true);
+        return;
+      }
+      localStorage.setItem('qkLocationCoords', JSON.stringify(coordinates));
+      setLocation(full); localStorage.setItem('qkLiveLocation', full); setLocationOpen(false);
+      if (customerName && customerPhone.length === 10) {
+        await saveCustomerProfile({ name: customerName, phone: customerPhone, address: full });
+      }
+    } catch (error) {
+      console.error(error);
+      showNotice('Address could not be saved. Try again.', true);
+    } finally {
+      setSavingAddress(false);
+    }
   };
-  const closeLocation = () => { if (!location) return showNotice('Select a delivery location first.', true); setLocationOpen(false); };
+  const closeLocation = () => setLocationOpen(false);
 
   const checkout = async () => {
     const items = Object.values(cart);
@@ -458,19 +564,59 @@ export default function App() {
     const store = stores.find((entry) => entry.id === items[0].product.storeId);
     if (!store) return showNotice('This store is currently unavailable.', true);
     if (items.some((item) => item.product.storeId !== store.id)) return showNotice('Only one store is allowed per order.', true);
+    const liveItems = [];
+    for (const item of items) {
+      const liveProduct = products.find((product) => product.key === item.product.key);
+      if (!liveProduct || item.quantity > Number(liveProduct.stockQuantity || 0)) {
+        return showNotice(`${item.product.name} no longer has enough stock. Update your cart.`, true);
+      }
+      liveItems.push({ product: liveProduct, quantity: item.quantity });
+    }
+    const subtotal = liveItems.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+    if (subtotal < Number(store.minimumOrder || 0)) {
+      return showNotice(`Minimum order for ${store.name} is ${money(store.minimumOrder)}.`, true);
+    }
+    const customerCoordinates = readCoordinates();
+    const deliveryRadius = Number(store.deliveryRadiusKm || 0);
+    if (deliveryRadius > 0) {
+      const deliveryDistance = distanceKm(store.location, customerCoordinates);
+      if (!Number.isFinite(deliveryDistance)) {
+        setCartOpen(false);
+        setLocationOpen(true);
+        return showNotice('Verify your delivery location before placing the order.', true);
+      }
+      if (deliveryDistance > deliveryRadius) {
+        return showNotice(`This address is outside ${store.name}'s ${deliveryRadius} km delivery area.`, true);
+      }
+    }
     setPlacing(true);
-    try { const number = await createOrder({ cartItems: items, store, name: customerName.trim(), phone: customerPhone, address: location }); setCart({}); setCartOpen(false); setActiveTab('orders'); showNotice(`Order #${number} placed successfully.`); } catch (error) { console.error(error); showNotice(error?.message || 'Order could not be placed. Try again.', true); } finally { setPlacing(false); }
+    try { const number = await createOrder({ cartItems: liveItems, store, name: customerName.trim(), phone: customerPhone, address: location }); setCart({}); setCartOpen(false); setActiveTab('orders'); showNotice(`Order #${number} placed successfully.`); } catch (error) { console.error(error); showNotice(error?.message || 'Order could not be placed. Try again.', true); } finally { setPlacing(false); }
   };
 
   const handleCancel = async (orderId) => { setCancelling(true); try { await cancelOrder(orderId); setSelectedOrderId(null); showNotice('Order cancelled.'); } catch (error) { console.error(error); showNotice('Order could not be cancelled.', true); } finally { setCancelling(false); } };
+  const handleCustomerLogout = async () => {
+    [
+      'qkProfileName', 'qkProfilePhone', 'qkProfileEmail',
+      'qkCustomerName', 'qkCustomerPhone', 'qkLiveLocation',
+      'qkDetectedLocation', 'qkLocationCoords',
+    ].forEach((key) => localStorage.removeItem(key));
+    setCustomerName('');
+    setCustomerPhone('');
+    setLocation('');
+    setDetected('');
+    setHouse('');
+    setStreet('');
+    setCart({});
+    await resetCustomerSession();
+  };
   const goBackFromSecondary = () => { if (activeTab === 'orders' && selectedOrderId) setSelectedOrderId(null); else setActiveTab('darkstore'); };
 
   let mainContent;
-  if (activeTab === 'darkstore') mainContent = activeStore ? <StoreView store={activeStore} products={products} search={search} onBack={() => setActiveStoreId(null)} onAdd={addProduct} /> : <HomeView stores={stores} loading={catalogLoading} search={search} activeCategory={activeCategory} onCategory={(category) => { setActiveCategory(category); setActiveStoreId(null); }} onStore={setActiveStoreId} onNotice={showNotice} />;
+  if (activeTab === 'darkstore') mainContent = activeStore ? <StoreView store={activeStore} products={products} search={search} onBack={() => setActiveStoreId(null)} onAdd={addProduct} /> : <HomeView stores={stores} products={products} loading={catalogLoading} search={search} activeCategory={activeCategory} onCategory={(category) => { setActiveCategory(category); setActiveStoreId(null); }} onStore={setActiveStoreId} onNotice={showNotice} />;
   else if (activeTab === 'orders') mainContent = <OrdersView orders={orders} selectedOrder={selectedOrder} onSelect={setSelectedOrderId} onBack={goBackFromSecondary} onCancel={handleCancel} cancelling={cancelling} />;
   else if (activeTab === 'track') mainContent = <TrackView order={activeOrder} onBack={goBackFromSecondary} />;
-  else if (activeTab === 'ai') mainContent = <AiView onBack={goBackFromSecondary} stores={stores} products={products} cart={cart} orders={orders} location={location} onAdd={addProduct} onChange={changeCart} />;
-  else mainContent = <ProfileView onBack={goBackFromSecondary} customerProfile={customerProfile} saveProfile={saveCustomerProfile} onNotice={showNotice} />;
+  else if (activeTab === 'ai') mainContent = <AiView onBack={goBackFromSecondary} user={user} stores={stores} products={products} cart={cart} orders={orders} location={location} onAdd={addProduct} onChange={changeCart} />;
+  else mainContent = <ProfileView onBack={goBackFromSecondary} customerProfile={customerProfile} saveProfile={saveCustomerProfile} onLogout={handleCustomerLogout} onNotice={showNotice} />;
 
   return (
     <>
@@ -484,7 +630,7 @@ export default function App() {
       </div>
       <div className={`toast ${toast.show ? 'show' : ''} ${toast.error ? 'error' : ''}`} id="toast" role="status" aria-live="polite">{toast.message}</div>
       <CartOverlay open={cartOpen} cart={cart} customerName={customerName} customerPhone={customerPhone} placing={placing} onClose={() => setCartOpen(false)} onName={setCustomerName} onPhone={setCustomerPhone} onChange={changeCart} onCheckout={checkout} />
-      <LocationSheet open={locationOpen} savedLocation={location} detected={detected} detecting={detecting} manualVisible={manualVisible} house={house} street={street} onClose={closeLocation} onDetect={detectLocation} onHouse={setHouse} onStreet={setStreet} onSave={saveAddress} />
+      <LocationSheet open={locationOpen} savedLocation={location} detected={detected} detecting={detecting} saving={savingAddress} manualVisible={manualVisible} house={house} street={street} onClose={closeLocation} onDetect={detectLocation} onHouse={setHouse} onStreet={setStreet} onSave={saveAddress} />
     </>
   );
 }
