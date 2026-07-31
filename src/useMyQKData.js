@@ -87,7 +87,15 @@ export default function useMyQKData(onNotice) {
   }, [onNotice]);
 
   useEffect(() => {
+    if (!backendReady || !user) {
+      setCatalogLoading(true);
+      return undefined;
+    }
+
     let active = true;
+    let unsubscribeStores = null;
+    let retryTimer = null;
+    let catalogErrorShown = false;
     const productListeners = new Map();
     const productGroups = new Map();
 
@@ -146,42 +154,64 @@ export default function useMyQKData(onNotice) {
       where('status', '==', 'active'),
       where('isOpen', '==', true),
     );
-    const unsubscribeStores = onSnapshot(storesQuery, (snapshot) => {
-      const nextStores = snapshot.docs.flatMap((entry) => {
-        const data = entry.data();
-        if (data.status !== 'active' || data.isOpen === false) return [];
-        return [{
-          id: entry.id,
-          merchantId: data.merchantId,
-          name: data.name || 'MyQK Store',
-          category: normalizeCategory(data.category),
-          rawCategory: data.category || '',
-          description: data.description || '',
-          image: data.imageUrl || data.logoUrl || placeholderImage(data.name || 'Store', 'store'),
-          time: `${data.openingTime || 'Open'}–${data.closingTime || 'Close'}`,
-          address: data.address || {},
-          location: data.location || null,
-          minimumOrder: Number(data.minimumOrder || 0),
-          deliveryRadiusKm: Number(data.deliveryRadiusKm || 0),
-          rating: Number(data.rating || 0),
-        }];
-      });
+
+    const subscribeToStores = () => {
       if (!active) return;
-      setStores(nextStores);
-      setCatalogLoading(false);
-      syncProductListeners(nextStores);
-    }, (error) => {
-      console.error('Store catalog listener failed:', error);
-      if (active) setCatalogLoading(false);
-      onNotice('Stores could not load. Check Firebase rules.', true);
-    });
+      unsubscribeStores?.();
+      unsubscribeStores = onSnapshot(storesQuery, (snapshot) => {
+        const nextStores = snapshot.docs.flatMap((entry) => {
+          const data = entry.data();
+          if (data.status !== 'active' || data.isOpen === false) return [];
+          return [{
+            id: entry.id,
+            merchantId: data.merchantId,
+            name: data.name || 'MyQK Store',
+            category: normalizeCategory(data.category),
+            rawCategory: data.category || '',
+            description: data.description || '',
+            image: data.imageUrl || data.logoUrl || placeholderImage(data.name || 'Store', 'store'),
+            time: `${data.openingTime || 'Open'}–${data.closingTime || 'Close'}`,
+            address: data.address || {},
+            location: data.location || null,
+            minimumOrder: Number(data.minimumOrder || 0),
+            deliveryRadiusKm: Number(data.deliveryRadiusKm || 0),
+            rating: Number(data.rating || 0),
+          }];
+        });
+        if (!active) return;
+        catalogErrorShown = false;
+        window.clearTimeout(retryTimer);
+        setStores(nextStores);
+        setCatalogLoading(false);
+        syncProductListeners(nextStores);
+      }, (error) => {
+        console.error('Store catalog listener failed:', error);
+        if (!active) return;
+        setCatalogLoading(true);
+        if (!catalogErrorShown) {
+          const errorCode = String(error?.code || '');
+          onNotice(
+            errorCode.includes('failed-precondition')
+              ? 'Store catalog index is preparing. Retrying automatically…'
+              : 'Reconnecting to nearby stores…',
+            true,
+          );
+          catalogErrorShown = true;
+        }
+        window.clearTimeout(retryTimer);
+        retryTimer = window.setTimeout(subscribeToStores, 2500);
+      });
+    };
+
+    subscribeToStores();
 
     return () => {
       active = false;
-      unsubscribeStores();
+      window.clearTimeout(retryTimer);
+      unsubscribeStores?.();
       productListeners.forEach((unsubscribe) => unsubscribe());
     };
-  }, [onNotice]);
+  }, [backendReady, onNotice, user]);
 
   const saveCustomerProfile = useCallback(async ({ name, phone, address, email }) => {
     if (!user) throw new Error('Backend is still connecting. Try again.');
