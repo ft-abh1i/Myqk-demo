@@ -4,9 +4,18 @@
       "collectionGroup": "stores",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "isApproved", "order": "ASCENDING" },
-        { "fieldPath": "status", "order": "ASCENDING" },
-        { "fieldPath": "isOpen", "order": "ASCENDING" }
+        {
+          "fieldPath": "isApproved",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "isOpen",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
