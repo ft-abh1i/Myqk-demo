@@ -1,4 +1,4 @@
-name: CI Auto-Authorization Migration
+name: CI Authorization Diagnostic
 
 on:
   push:
@@ -8,7 +8,7 @@ permissions:
   contents: write
 
 jobs:
-  migrate:
+  authorize:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -33,14 +33,13 @@ jobs:
         with:
           project_id: buyqk-rider
 
-      - name: Patch rules and tests
+      - name: Patch Firestore rules and tests
         shell: python
         run: |
           from pathlib import Path
 
           rules_path = Path('firestore.rules')
           rules = rules_path.read_text()
-
           replacements = [
             (
               """    function publicStore(storeId) {
@@ -78,18 +77,17 @@ jobs:
             ),
             ("        || publicStore(storeId);", "        || publicStoreData(resource.data);"),
           ]
-
           for old, new in replacements:
             if old not in rules:
               raise SystemExit(f'Missing expected rule block: {old!r}')
             rules = rules.replace(old, new, 1)
 
-          anchor = """      allow update: if isOwner(riderId)
+          rider_anchor = """      allow update: if isOwner(riderId)
         && request.resource.data.uid == resource.data.uid
         && request.resource.data.onboardingComplete == resource.data.onboardingComplete
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'fullName', 'email', 'photoURL', 'phone', 'city',"""
-          activation = """      allow update: if isOwner(riderId)
+          rider_activation = """      allow update: if isOwner(riderId)
         && request.resource.data.uid == resource.data.uid
         && request.resource.data.onboardingComplete == resource.data.onboardingComplete
         && request.resource.data.isApproved == true
@@ -99,11 +97,10 @@ jobs:
         ]);
 
 """
-          if activation not in rules:
-            if anchor not in rules:
+          if rider_activation not in rules:
+            if rider_anchor not in rules:
               raise SystemExit('Missing rider update insertion point.')
-            rules = rules.replace(anchor, activation + anchor, 1)
-
+            rules = rules.replace(rider_anchor, rider_activation + rider_anchor, 1)
           rules_path.write_text(rules)
 
           tests_path = Path('tests/firestore-rules.integration.mjs')
@@ -116,7 +113,6 @@ jobs:
             "  updateDoc,\n  writeBatch",
             "  updateDoc,\n  where,\n  writeBatch"
           )
-
           marker = "test('merchant onboarding requires the pending store and profile to be created together'"
           start = tests.index(marker)
           prefix, onboarding = tests[:start], tests[start:]
@@ -145,30 +141,72 @@ jobs:
           insert_at = "test('customer order validation accepts the real bill and rejects a tampered total', async () => {"
           if public_test not in tests:
             tests = tests.replace(insert_at, public_test + insert_at, 1)
-
           tests_path.write_text(tests)
 
-      - name: Validate application and Firestore rules
+      - name: Validate changes
         run: |
           npm ci
           npm test
           npm run build
           npx --yes firebase-tools@15.25.1 emulators:exec --only firestore --project demo-buyqk-rules-tests "npm run test:rules"
 
+      - name: Commit rules and restore standard CI
+        shell: bash
+        run: |
+          cat > .github/workflows/ci.yml <<'EOF'
+          name: CI
+
+          on:
+            push:
+              branches: [main]
+            pull_request:
+
+          permissions:
+            contents: read
+
+          jobs:
+            test:
+              runs-on: ubuntu-latest
+              steps:
+                - uses: actions/checkout@v4
+                - uses: actions/setup-node@v4
+                  with:
+                    node-version: 22
+                    cache: npm
+                - uses: actions/setup-java@v4
+                  with:
+                    distribution: temurin
+                    java-version: 21
+                - run: npm ci
+                - run: npm test
+                - run: npm run build
+                - name: Test Firestore rules
+                  run: npx --yes firebase-tools@15.25.1 emulators:exec --only firestore --project demo-buyqk-rules-tests "npm run test:rules"
+          EOF
+          rm -f .github/workflows/patch-auto-authorization-rules.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add firestore.rules tests/firestore-rules.integration.mjs .github/workflows/ci.yml .github/workflows/patch-auto-authorization-rules.yml
+          git commit -m "Auto-authorize merchants and riders in Firestore rules"
+          git push
+
       - name: Deploy Firestore rules
+        id: deploy
+        continue-on-error: true
         shell: bash
         run: |
           set +e
-          npx --yes firebase-tools@15.25.1 deploy --only firestore:rules --project buyqk-rider --non-interactive
-          cli_status=$?
+          npx --yes firebase-tools@15.25.1 deploy --only firestore:rules --project buyqk-rider --non-interactive 2>&1 | tee deploy-rules.log
+          cli_status=${PIPESTATUS[0]}
           set -e
           if [ "$cli_status" -eq 0 ]; then
-            echo "rules_deploy=firebase-cli" > auto-authorization-status.txt
+            echo "method=firebase-cli" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
+          echo "Firebase CLI failed; trying Firebase Rules REST API." | tee -a deploy-rules.log
           export ACCESS_TOKEN="$(gcloud auth print-access-token)"
-          python <<'PY'
+          python <<'PY' 2>&1 | tee -a deploy-rules.log
           import json
           import os
           import urllib.error
@@ -182,48 +220,45 @@ jobs:
               request = urllib.request.Request(
                   url,
                   data=json.dumps(body).encode(),
-                  headers={
-                      'Authorization': f'Bearer {token}',
-                      'Content-Type': 'application/json',
-                  },
+                  headers={'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'},
                   method=method,
               )
               try:
                   with urllib.request.urlopen(request, timeout=60) as response:
                       return json.load(response)
               except urllib.error.HTTPError as error:
-                  detail = error.read().decode()
-                  raise RuntimeError(f'{method} {url} failed: {error.code} {detail}') from error
+                  raise RuntimeError(error.read().decode()) from error
 
           ruleset = api(
               f'https://firebaserules.googleapis.com/v1/projects/{project}/rulesets',
               'POST',
               {'source': {'files': [{'name': 'firestore.rules', 'content': Path('firestore.rules').read_text()}]}},
           )
-          release_url = f'https://firebaserules.googleapis.com/v1/projects/{project}/releases/cloud.firestore?updateMask=rulesetName'
           api(
-              release_url,
+              f'https://firebaserules.googleapis.com/v1/projects/{project}/releases/cloud.firestore?updateMask=rulesetName',
               'PATCH',
-              {
-                  'name': f'projects/{project}/releases/cloud.firestore',
-                  'rulesetName': ruleset['name'],
-              },
+              {'name': f'projects/{project}/releases/cloud.firestore', 'rulesetName': ruleset['name']},
           )
-          with Path('auto-authorization-status.txt').open('w') as file:
-              file.write('rules_deploy=rest-api\n')
+          print('Rules deployed with REST API.')
           PY
+          rest_status=${PIPESTATUS[0]}
+          if [ "$rest_status" -eq 0 ]; then
+            echo "method=rest-api" >> "$GITHUB_OUTPUT"
+          fi
+          exit "$rest_status"
 
-      - name: Auto-authorize existing records
+      - name: Migrate existing marketplace records
+        id: migrate
+        continue-on-error: true
         shell: bash
         run: |
           export ACCESS_TOKEN="$(gcloud auth print-access-token)"
-          python <<'PY'
+          python <<'PY' 2>&1 | tee migrate-records.log
           import datetime
           import json
           import os
           import urllib.parse
           import urllib.request
-          from pathlib import Path
 
           project = 'buyqk-rider'
           root = f'https://firestore.googleapis.com/v1/projects/{project}/databases/(default)/documents'
@@ -262,7 +297,6 @@ jobs:
 
           now = datetime.datetime.now(datetime.timezone.utc).isoformat().replace('+00:00', 'Z')
           changed = {'stores': 0, 'merchants': 0, 'riders': 0}
-
           for document in all_docs('stores'):
               fields = document.get('fields', {})
               if scalar(fields.get('isApproved')) is not True or scalar(fields.get('status')) != 'active':
@@ -272,7 +306,6 @@ jobs:
                       'updatedAt': {'timestampValue': now},
                   })
                   changed['stores'] += 1
-
           for document in all_docs('merchants'):
               if scalar(document.get('fields', {}).get('accountStatus')) != 'active':
                   patch(document, {
@@ -280,7 +313,6 @@ jobs:
                       'updatedAt': {'timestampValue': now},
                   })
                   changed['merchants'] += 1
-
           for document in all_docs('riders'):
               fields = document.get('fields', {})
               if scalar(fields.get('isApproved')) is not True or scalar(fields.get('accountStatus')) != 'active':
@@ -290,50 +322,30 @@ jobs:
                       'updatedAt': {'timestampValue': now},
                   })
                   changed['riders'] += 1
-
-          with Path('auto-authorization-status.txt').open('a') as file:
-              for key, value in changed.items():
-                  file.write(f'{key}_activated={value}\n')
-          print(changed)
+          print(json.dumps(changed, sort_keys=True))
           PY
 
-      - name: Restore CI and commit results
+      - name: Record deployment and migration result
+        if: always()
         shell: bash
+        env:
+          DEPLOY_OUTCOME: ${{ steps.deploy.outcome }}
+          DEPLOY_METHOD: ${{ steps.deploy.outputs.method }}
+          MIGRATE_OUTCOME: ${{ steps.migrate.outcome }}
         run: |
-          cat > .github/workflows/ci.yml <<'EOF'
-          name: CI
-
-          on:
-            push:
-              branches: [main]
-            pull_request:
-
-          permissions:
-            contents: read
-
-          jobs:
-            test:
-              runs-on: ubuntu-latest
-              steps:
-                - uses: actions/checkout@v4
-                - uses: actions/setup-node@v4
-                  with:
-                    node-version: 22
-                    cache: npm
-                - uses: actions/setup-java@v4
-                  with:
-                    distribution: temurin
-                    java-version: 21
-                - run: npm ci
-                - run: npm test
-                - run: npm run build
-                - name: Test Firestore rules
-                  run: npx --yes firebase-tools@15.25.1 emulators:exec --only firestore --project demo-buyqk-rules-tests "npm run test:rules"
-          EOF
-
-          rm -f .github/workflows/patch-auto-authorization-rules.yml
+          git pull --rebase
+          {
+            printf 'deploy_outcome=%s\n' "$DEPLOY_OUTCOME"
+            printf 'deploy_method=%s\n' "$DEPLOY_METHOD"
+            printf 'migration_outcome=%s\n\n' "$MIGRATE_OUTCOME"
+            echo '--- deploy log ---'
+            tail -n 30 deploy-rules.log 2>/dev/null || true
+            echo
+            echo '--- migration log ---'
+            tail -n 20 migrate-records.log 2>/dev/null || true
+          } > auto-authorization-status.txt
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add firestore.rules tests/firestore-rules.integration.mjs auto-authorization-status.txt .github/workflows/ci.yml .github/workflows/patch-auto-authorization-rules.yml
-          git commit -m "Auto-authorize merchants and riders"
+          git add auto-authorization-status.txt
+          git commit -m "Record marketplace authorization result" || exit 0
           git push
