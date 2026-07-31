@@ -32,21 +32,99 @@ jobs:
         with:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - name: Set up Google Cloud CLI
+        uses: google-github-actions/setup-gcloud@v3
         with:
-          node-version: "20"
+          project_id: buyqk-rider
 
-      - name: Install Firebase CLI
-        run: npm install --global firebase-tools
-
-      - name: Deploy Firestore indexes
+      - name: Create Firestore composite indexes
         id: deploy
         continue-on-error: true
         shell: bash
         run: |
           set +e
-          firebase deploy --only firestore:indexes --project buyqk-rider --non-interactive 2>&1 | tee firebase-deploy.log
+          (
+            set -e
+
+            create_index() {
+              local label="$1"
+              shift
+
+              echo "Creating index: $label"
+              set +e
+              output=$(gcloud firestore indexes composite create \
+                --project=buyqk-rider \
+                --database='(default)' \
+                --query-scope=collection \
+                --async \
+                --quiet \
+                "$@" 2>&1)
+              code=$?
+              set -e
+              echo "$output"
+
+              if [ "$code" -eq 0 ]; then
+                return 0
+              fi
+
+              if echo "$output" | grep -Eqi 'already exists|ALREADY_EXISTS'; then
+                echo "Index already exists; continuing."
+                return 0
+              fi
+
+              return "$code"
+            }
+
+            create_index "stores: isApproved, status, isOpen" \
+              --collection-group=stores \
+              --field-config=field-path=isApproved,order=ascending \
+              --field-config=field-path=status,order=ascending \
+              --field-config=field-path=isOpen,order=ascending
+
+            create_index "orders: customerId, createdAt" \
+              --collection-group=orders \
+              --field-config=field-path=customerId,order=ascending \
+              --field-config=field-path=createdAt,order=descending
+
+            create_index "orders: storeId, createdAt" \
+              --collection-group=orders \
+              --field-config=field-path=storeId,order=ascending \
+              --field-config=field-path=createdAt,order=descending
+
+            create_index "orders: storeId, status, completedAt" \
+              --collection-group=orders \
+              --field-config=field-path=storeId,order=ascending \
+              --field-config=field-path=status,order=ascending \
+              --field-config=field-path=completedAt,order=descending
+
+            create_index "orders: status, readyAt" \
+              --collection-group=orders \
+              --field-config=field-path=status,order=ascending \
+              --field-config=field-path=readyAt,order=descending
+
+            create_index "orders: assignedRiderId, updatedAt" \
+              --collection-group=orders \
+              --field-config=field-path=assignedRiderId,order=ascending \
+              --field-config=field-path=updatedAt,order=descending
+
+            create_index "orders: assignedRiderId, status" \
+              --collection-group=orders \
+              --field-config=field-path=assignedRiderId,order=ascending \
+              --field-config=field-path=status,order=ascending
+
+            create_index "orders: assignedRiderId, status, completedAt" \
+              --collection-group=orders \
+              --field-config=field-path=assignedRiderId,order=ascending \
+              --field-config=field-path=status,order=ascending \
+              --field-config=field-path=completedAt,order=ascending
+
+            echo "Current composite indexes:"
+            gcloud firestore indexes composite list \
+              --project=buyqk-rider \
+              --database='(default)' \
+              --format='table(name.basename(),collectionGroup,queryScope,state)'
+          ) 2>&1 | tee firestore-deploy.log
+
           exit_code=${PIPESTATUS[0]}
           echo "exit_code=$exit_code" >> "$GITHUB_OUTPUT"
           exit "$exit_code"
@@ -61,8 +139,8 @@ jobs:
         run: |
           {
             printf 'outcome=%s\nsource_sha=%s\nexit_code=%s\n\n' "$DEPLOY_OUTCOME" "$SOURCE_SHA" "$EXIT_CODE"
-            if [ -f firebase-deploy.log ]; then
-              tail -n 35 firebase-deploy.log \
+            if [ -f firestore-deploy.log ]; then
+              tail -n 80 firestore-deploy.log \
                 | sed -E 's/(Help Token:).*/\1 [redacted]/' \
                 | sed -E 's#https://[^ ]+#https://[redacted]#g'
             fi
