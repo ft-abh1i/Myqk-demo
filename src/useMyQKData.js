@@ -87,11 +87,6 @@ export default function useMyQKData(onNotice) {
   }, [onNotice]);
 
   useEffect(() => {
-    if (!backendReady || !user) {
-      setCatalogLoading(true);
-      return undefined;
-    }
-
     let active = true;
     let unsubscribeStores = null;
     let retryTimer = null;
@@ -211,7 +206,7 @@ export default function useMyQKData(onNotice) {
       unsubscribeStores?.();
       productListeners.forEach((unsubscribe) => unsubscribe());
     };
-  }, [backendReady, onNotice, user]);
+  }, [onNotice]);
 
   const saveCustomerProfile = useCallback(async ({ name, phone, address, email }) => {
     if (!user) throw new Error('Backend is still connecting. Try again.');
