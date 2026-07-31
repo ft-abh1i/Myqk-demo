@@ -1,38 +1,38 @@
 outcome=success
-source_sha=a3e50dadf29d989dc4a616c140321849430c41fd
+source_sha=09424d270340b48ed4935cae2a76186d9252c36e
 exit_code=0
 
 Creating index: stores: isApproved, status, isOpen
-Create request issued
-Check operation [projects/buyqk-rider/databases/(default)/operations/S0U0aFhqT2dBQ0lDDCoDIGY3NWM1ZTM1YmE0YS1kZGRiLWQ4YTQtYTQwOS02ZjExYTdjMyQac2VuaWxlcGlwCQpBEg] for status.
+ERROR: (gcloud.firestore.indexes.composite.create) ALREADY_EXISTS: index already exists with index ID = CICAgOjXh4EK
+Index already exists; continuing.
 Creating index: orders: customerId, createdAt
-Create request issued
-Check operation [projects/buyqk-rider/databases/(default)/operations/S01vcFVpSmdBQ0lDDCoDIDcxMGQ4YTY3NmU5Ny04NTFhLTgzNDQtODEyNi1iNDY0YjYwMyQac2VuaWxlcGlwCQpBEg] for status.
+ERROR: (gcloud.firestore.indexes.composite.create) ALREADY_EXISTS: index already exists with index ID = CICAgJiUpoMK
+Index already exists; continuing.
 Creating index: orders: storeId, createdAt
-Create request issued
-Check operation [projects/buyqk-rider/databases/(default)/operations/S0E0MW1pSmdBQ0lDDCoDIGJkZDA3Y2E5YTU5NS1iOTg4LTk1NTQtNTQzNi00Njc3NzAyYiQac2VuaWxlcGlwCQpBEg] for status.
+ERROR: (gcloud.firestore.indexes.composite.create) ALREADY_EXISTS: index already exists with index ID = CICAgJim14AK
+Index already exists; continuing.
 Creating index: orders: storeId, status, completedAt
-Create request issued
-Check operation [projects/buyqk-rider/databases/(default)/operations/S0lvOUZqSmdBQ0lDDCoDIDViNTU3YWYxNTdkMC1hMzQ5LWY1NjQtNzBlMi1iYTkwNzA0MiQac2VuaWxlcGlwCQpBEg] for status.
+ERROR: (gcloud.firestore.indexes.composite.create) ALREADY_EXISTS: index already exists with index ID = CICAgJjF9oIK
+Index already exists; continuing.
 Creating index: orders: status, readyAt
-Create request issued
-Check operation [projects/buyqk-rider/databases/(default)/operations/S0U0ejdqSmdBQ0lDDCoDIDI5OWQ1ZjU4YjQ4MS05MzI5LTdmYjQtMGE3NS04MDU3NWFlMyQac2VuaWxlcGlwCQpBEg] for status.
+ERROR: (gcloud.firestore.indexes.composite.create) ALREADY_EXISTS: index already exists with index ID = CICAgJj7z4EK
+Index already exists; continuing.
 Creating index: orders: assignedRiderId, updatedAt
-Create request issued
-Check operation [projects/buyqk-rider/databases/(default)/operations/S0FKazNpT2dBQ0lDDCoDIGY3MzY5MjQ3ODQ0ZC0yZjViLTU2MDQtZmJkNi1lOTgxMjhkNiQac2VuaWxlcGlwCQpBEg] for status.
+ERROR: (gcloud.firestore.indexes.composite.create) ALREADY_EXISTS: index already exists with index ID = CICAgOi3kJAK
+Index already exists; continuing.
 Creating index: orders: assignedRiderId, status
-Create request issued
-Check operation [projects/buyqk-rider/databases/(default)/operations/S01vNzRpTmdBQ0lDDCoDIDA5MDVjYTMwYTRmZi0zMGJhLWUzZDQtY2QzOC0wZmJlN2MyMCQac2VuaWxlcGlwCQpBEg] for status.
+ERROR: (gcloud.firestore.indexes.composite.create) ALREADY_EXISTS: index already exists with index ID = CICAgNi47oMK
+Index already exists; continuing.
 Creating index: orders: assignedRiderId, status, completedAt
-Create request issued
-Check operation [projects/buyqk-rider/databases/(default)/operations/S01acUZqSmdBQ0lDDCoDIDZjNjQ0ZTFiOTQ0Zi0xZWFiLTFhYjQtYTg5OC05NTRiZTZhOCQac2VuaWxlcGlwCQpBEg] for status.
+ERROR: (gcloud.firestore.indexes.composite.create) ALREADY_EXISTS: index already exists with index ID = CICAgJjFqZMK
+Index already exists; continuing.
 Current composite indexes:
 NAME          COLLECTION_GROUP  QUERY_SCOPE  STATE
-CICAgJim14AK                    COLLECTION   CREATING
-CICAgOjXh4EK                    COLLECTION   CREATING
-CICAgJj7z4EK                    COLLECTION   CREATING
-CICAgJjF9oIK                    COLLECTION   CREATING
-CICAgJiUpoMK                    COLLECTION   CREATING
-CICAgNi47oMK                    COLLECTION   CREATING
-CICAgOi3kJAK                    COLLECTION   CREATING
-CICAgJjFqZMK                    COLLECTION   CREATING
+CICAgJim14AK                    COLLECTION   READY
+CICAgOjXh4EK                    COLLECTION   READY
+CICAgJj7z4EK                    COLLECTION   READY
+CICAgJjF9oIK                    COLLECTION   READY
+CICAgJiUpoMK                    COLLECTION   READY
+CICAgNi47oMK                    COLLECTION   READY
+CICAgOi3kJAK                    COLLECTION   READY
+CICAgJjFqZMK                    COLLECTION   READY
