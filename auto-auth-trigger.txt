@@ -1,1 +1,1 @@
-Verify scheduled marketplace auto-authorization for PR #17.
+Test Firebase owner-token deployment for PR #17.
