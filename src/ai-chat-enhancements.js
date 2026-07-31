@@ -8,44 +8,7 @@ function cleanMessage(message) {
   const role = message?.role === 'user' ? 'user' : 'assistant';
   const content = String(message?.content || '').trim();
   if (!content || content === 'Thinking…') return null;
-  return {
-    role,
-    content,
-    at: Number(message?.at || Date.now()),
-  };
-}
-
-function readStoredHistory() {
-  try {
-    const parsed = JSON.parse(localStorage.getItem(AI_CHAT_STORAGE_KEY) || '[]');
-    if (!Array.isArray(parsed)) return [];
-    return parsed.map(cleanMessage).filter(Boolean).slice(-MAX_STORED_MESSAGES);
-  } catch {
-    return [];
-  }
-}
-
-function writeStoredHistory(messages) {
-  try {
-    localStorage.setItem(AI_CHAT_STORAGE_KEY, JSON.stringify(messages.slice(-MAX_STORED_MESSAGES)));
-  } catch {
-    // Chat should continue to work even if browser storage is unavailable.
-  }
-}
-
-function appendStoredMessage(role, content) {
-  const nextMessage = cleanMessage({ role, content, at: Date.now() });
-  if (!nextMessage) return;
-
-  const history = readStoredHistory();
-  const previous = history[history.length - 1];
-  const isAccidentalDuplicate = previous
-    && previous.role === nextMessage.role
-    && previous.content === nextMessage.content
-    && nextMessage.at - previous.at < 2000;
-
-  if (!isAccidentalDuplicate) history.push(nextMessage);
-  writeStoredHistory(history);
+  return { role, content };
 }
 
 function uniqueConversation(messages) {
@@ -55,9 +18,49 @@ function uniqueConversation(messages) {
     if (!cleaned) return;
     const previous = unique[unique.length - 1];
     if (previous?.role === cleaned.role && previous.content === cleaned.content) return;
-    unique.push({ role: cleaned.role, content: cleaned.content });
+    unique.push(cleaned);
   });
-  return unique;
+  return unique.slice(-MAX_STORED_MESSAGES);
+}
+
+function readStoredHistory() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(AI_CHAT_STORAGE_KEY) || '[]');
+    return Array.isArray(parsed) ? uniqueConversation(parsed) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeStoredHistory(messages) {
+  try {
+    localStorage.setItem(AI_CHAT_STORAGE_KEY, JSON.stringify(uniqueConversation(messages)));
+  } catch {
+    // Chat remains usable when browser storage is unavailable.
+  }
+}
+
+function renderedMessages(container) {
+  return [...container.querySelectorAll('.ai-message:not([data-qk-ai-saved-message])')]
+    .map((bubble) => cleanMessage({
+      role: bubble.classList.contains('user') ? 'user' : 'assistant',
+      content: bubble.querySelector('.ai-message-copy')?.textContent || '',
+    }))
+    .filter(Boolean);
+}
+
+function ensureHistorySnapshot(container) {
+  if (!historySnapshots.has(container)) {
+    historySnapshots.set(container, readStoredHistory());
+  }
+  return historySnapshots.get(container) || [];
+}
+
+function persistRenderedHistory(container) {
+  const savedBeforeThisChat = ensureHistorySnapshot(container);
+  const currentChat = renderedMessages(container);
+  if (!currentChat.length) return;
+  writeStoredHistory([...savedBeforeThisChat, ...currentChat]);
 }
 
 function makeHistoryBlock(messages) {
@@ -82,13 +85,7 @@ function makeHistoryBlock(messages) {
 }
 
 function restoreHistory(container) {
-  if (!(container instanceof HTMLElement)) return;
-
-  if (!historySnapshots.has(container)) {
-    historySnapshots.set(container, readStoredHistory());
-  }
-
-  const snapshot = historySnapshots.get(container) || [];
+  const snapshot = ensureHistorySnapshot(container);
   if (!snapshot.length || container.querySelector('[data-qk-ai-history]')) return;
 
   container.querySelector('.ai-welcome-card')?.remove();
@@ -97,63 +94,26 @@ function restoreHistory(container) {
 }
 
 let restoreQueued = false;
-function queueHistoryRestore() {
+function syncAiHistory() {
   if (restoreQueued) return;
   restoreQueued = true;
   window.requestAnimationFrame(() => {
     restoreQueued = false;
-    document.querySelectorAll('.ai-messages').forEach(restoreHistory);
+    document.querySelectorAll('.ai-messages').forEach((container) => {
+      persistRenderedHistory(container);
+      restoreHistory(container);
+    });
   });
 }
 
-const pageObserver = new MutationObserver(queueHistoryRestore);
-pageObserver.observe(document.documentElement, { childList: true, subtree: true });
-queueHistoryRestore();
-
-const originalFetch = window.fetch.bind(window);
-window.fetch = async function qkFetch(resource, options = {}) {
-  const url = typeof resource === 'string' ? resource : String(resource?.url || '');
-  const isAiRequest = url.includes('/api/buyqk-ai') && String(options?.method || 'GET').toUpperCase() === 'POST';
-  if (!isAiRequest) return originalFetch(resource, options);
-
-  let payload = null;
-  try {
-    payload = JSON.parse(String(options?.body || '{}'));
-  } catch {
-    return originalFetch(resource, options);
-  }
-
-  const currentMessage = String(payload?.message || '').trim();
-  if (currentMessage) appendStoredMessage('user', currentMessage);
-
-  const storedHistory = readStoredHistory().filter((message) => !(message.role === 'user' && message.content === currentMessage));
-  const suppliedHistory = Array.isArray(payload?.history) ? payload.history : [];
-  const mergedHistory = uniqueConversation([...storedHistory, ...suppliedHistory]).slice(-8);
-  const requestOptions = {
-    ...options,
-    body: JSON.stringify({ ...payload, history: mergedHistory }),
-  };
-
-  try {
-    const response = await originalFetch(resource, requestOptions);
-    response.clone().json().then((data) => {
-      if (response.ok && data?.reply) {
-        appendStoredMessage('assistant', data.reply);
-      } else {
-        appendStoredMessage('assistant', 'BuyQK AI is temporarily unavailable. Please try again.');
-      }
-    }).catch(() => {
-      if (!response.ok) appendStoredMessage('assistant', 'BuyQK AI is temporarily unavailable. Please try again.');
-    });
-    return response;
-  } catch (error) {
-    appendStoredMessage('assistant', 'BuyQK AI is temporarily unavailable. Please try again.');
-    throw error;
-  }
-};
+const appRoot = document.getElementById('root');
+if (appRoot) {
+  new MutationObserver(syncAiHistory).observe(appRoot, { childList: true, subtree: true });
+}
+syncAiHistory();
 
 // On mobile, blurring the textarea changes the keyboard layout before the normal
-// click event reaches the Send button. Submit on pointer-down so one tap always works.
+// click event reaches the Send button. Submit on pointer-down so one tap works.
 document.addEventListener('pointerdown', (event) => {
   const sendButton = event.target instanceof Element ? event.target.closest('#aiSend') : null;
   if (!sendButton || sendButton.disabled) return;
