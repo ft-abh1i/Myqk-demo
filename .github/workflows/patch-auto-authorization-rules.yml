@@ -1,0 +1,147 @@
+name: Patch auto-authorization rules
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/patch-auto-authorization-rules.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Patch Firestore rules and tests
+        shell: python
+        run: |
+          from pathlib import Path
+
+          rules_path = Path('firestore.rules')
+          rules = rules_path.read_text()
+
+          replacements = [
+            (
+              """    function publicStore(storeId) {
+      return exists(/databases/$(database)/documents/stores/$(storeId))
+        && get(/databases/$(database)/documents/stores/$(storeId)).data.isApproved == true
+        && get(/databases/$(database)/documents/stores/$(storeId)).data.status == 'active'
+        && get(/databases/$(database)/documents/stores/$(storeId)).data.isOpen == true;
+    }""",
+              """    function publicStoreData(data) {
+      return data.isApproved == true
+        && data.status == 'active'
+        && data.isOpen == true;
+    }
+
+    function publicStore(storeId) {
+      return exists(/databases/$(database)/documents/stores/$(storeId))
+        && publicStoreData(
+          get(/databases/$(database)/documents/stores/$(storeId)).data
+        );
+    }"""
+            ),
+            ("        && request.resource.data.accountStatus == 'pending'", "        && request.resource.data.accountStatus == 'active'"),
+            (
+              """        ).data.status == 'pending_approval';""",
+              """        ).data.status == 'active'
+        && getAfter(
+          /databases/$(database)/documents/stores/$(request.resource.data.storeId)
+        ).data.isApproved == true;"""
+            ),
+            (
+              """        && request.resource.data.isApproved == false
+        && request.resource.data.status == 'pending_approval'""",
+              """        && request.resource.data.isApproved == true
+        && request.resource.data.status == 'active'"""
+            ),
+            ("        || publicStore(storeId);", "        || publicStoreData(resource.data);"),
+          ]
+
+          for old, new in replacements:
+            if old not in rules:
+              raise SystemExit(f'Missing expected rule block: {old!r}')
+            rules = rules.replace(old, new, 1)
+
+          anchor = """      allow update: if isOwner(riderId)
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.onboardingComplete == resource.data.onboardingComplete
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'fullName', 'email', 'photoURL', 'phone', 'city',"""
+          activation = """      allow update: if isOwner(riderId)
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.onboardingComplete == resource.data.onboardingComplete
+        && request.resource.data.isApproved == true
+        && request.resource.data.accountStatus == 'active'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'isApproved', 'accountStatus', 'updatedAt'
+        ]);
+
+"""
+          if activation not in rules:
+            if anchor not in rules:
+              raise SystemExit('Missing rider update insertion point.')
+            rules = rules.replace(anchor, activation + anchor, 1)
+
+          rules_path.write_text(rules)
+
+          tests_path = Path('tests/firestore-rules.integration.mjs')
+          tests = tests_path.read_text()
+          tests = tests.replace(
+            "  collection,\n  doc,\n  runTransaction,",
+            "  collection,\n  doc,\n  getDocs,\n  query,\n  runTransaction,"
+          )
+          tests = tests.replace(
+            "  updateDoc,\n  writeBatch",
+            "  updateDoc,\n  where,\n  writeBatch"
+          )
+
+          marker = "test('merchant onboarding requires the pending store and profile to be created together'"
+          start = tests.index(marker)
+          before, onboarding = tests[:start], tests[start:]
+          onboarding = onboarding.replace(marker, "test('merchant onboarding creates an active store and profile together'", 1)
+          onboarding = onboarding.replace(
+            "    isApproved: false,\n    status: 'pending_approval',",
+            "    isApproved: true,\n    status: 'active',",
+            1
+          )
+          onboarding = onboarding.replace("    accountStatus: 'pending'", "    accountStatus: 'active'", 1)
+          tests = before + onboarding
+
+          public_test = """test('public homepage query can list active open stores', async () => {
+  const publicDb = rulesEnvironment.unauthenticatedContext().firestore();
+  const storesQuery = query(
+    collection(publicDb, 'stores'),
+    where('isApproved', '==', true),
+    where('status', '==', 'active'),
+    where('isOpen', '==', true)
+  );
+  const snapshot = await assertSucceeds(getDocs(storesQuery));
+  assert.equal(snapshot.size, 1);
+});
+
+"""
+          insert_at = "test('customer order validation accepts the real bill and rejects a tampered total', async () => {"
+          if public_test not in tests:
+            tests = tests.replace(insert_at, public_test + insert_at, 1)
+
+          tests_path.write_text(tests)
+
+      - name: Verify patches
+        run: |
+          grep -q "function publicStoreData" firestore.rules
+          grep -q "accountStatus == 'active'" firestore.rules
+          grep -q "public homepage query can list active open stores" tests/firestore-rules.integration.mjs
+
+      - name: Commit authorization rules
+        run: |
+          rm -f .github/workflows/patch-auto-authorization-rules.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add firestore.rules tests/firestore-rules.integration.mjs .github/workflows/patch-auto-authorization-rules.yml
+          git commit -m "Auto-authorize merchants and riders in Firestore rules"
+          git push
