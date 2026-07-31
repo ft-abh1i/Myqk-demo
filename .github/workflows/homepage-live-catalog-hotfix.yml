@@ -1,0 +1,117 @@
+name: Homepage Live Catalog Hotfix
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/homepage-live-catalog-hotfix.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch-homepage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Patch homepage stores and products
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          app_path = Path('src/App.jsx')
+          source = app_path.read_text(encoding='utf-8')
+
+          replacement = '''function HomeView({ stores, products, search, activeCategory, onCategory, onStore, onAdd, onNotice }) {
+            const visibleStores = useMemo(() => {
+              const query = search.trim().toLowerCase();
+              return stores.filter((store) => (activeCategory === 'all' || store.category === activeCategory)
+                && (!query
+                  || `${store.name} ${store.rawCategory} ${store.description}`.toLowerCase().includes(query)
+                  || products.some((product) => product.storeId === store.id
+                    && `${product.name} ${product.brand} ${product.unit} ${product.category}`.toLowerCase().includes(query))));
+            }, [activeCategory, products, search, stores]);
+
+            const visibleProducts = useMemo(() => {
+              const query = search.trim().toLowerCase();
+              const visibleStoreIds = new Set(visibleStores.map((store) => store.id));
+              return products
+                .filter((product) => visibleStoreIds.has(product.storeId)
+                  && (!query
+                    || `${product.name} ${product.brand} ${product.unit} ${product.category}`.toLowerCase().includes(query)))
+                .slice(0, 16);
+            }, [products, search, visibleStores]);
+
+            return (
+              <div className="view home-view">
+                <CategoryStrip activeCategory={activeCategory} onSelect={onCategory} />
+                <section className="home-section">
+                  <div className="home-section-head"><h2>Available Stores</h2><button type="button" onClick={() => onNotice('Showing all currently available stores.')}>View all</button></div>
+                  <div className="featured-store-row">
+                    {visibleStores.map((store) => (
+                      <button className="featured-store-card" type="button" key={store.id} onClick={() => onStore(store.id)}>
+                        <img src={store.image} alt={store.name} loading="lazy" />
+                        <div className="featured-store-info"><strong>{store.name}</strong><span className="store-clock">◷ {store.time}</span><span className="free-delivery">Live inventory</span></div>
+                      </button>
+                    ))}
+                  </div>
+                </section>
+                <section className="home-section" aria-labelledby="nearbyProductsTitle">
+                  <div className="home-section-head"><h2 id="nearbyProductsTitle">Products Near You</h2><button type="button" onClick={() => onNotice('Showing live products from nearby stores.')}>View all</button></div>
+                  <div className="best-product-row">
+                    {visibleProducts.map((product) => <ProductCard key={product.key} product={product} onAdd={onAdd} />)}
+                  </div>
+                </section>
+                <GroceryKitchen />
+              </div>
+            );
+          }'''
+
+          pattern = r"function HomeView\([\s\S]*?\n\}\n\nfunction ProductCard"
+          patched, count = re.subn(pattern, replacement + "\n\nfunction ProductCard", source, count=1)
+          if count != 1:
+            raise SystemExit(f'HomeView replacement count was {count}, expected 1')
+
+          old_call = '<HomeView stores={stores} products={products} loading={catalogLoading} search={search} activeCategory={activeCategory} onCategory={(category) => { setActiveCategory(category); setActiveStoreId(null); }} onStore={setActiveStoreId} onNotice={showNotice} />'
+          new_call = '<HomeView stores={stores} products={products} search={search} activeCategory={activeCategory} onCategory={(category) => { setActiveCategory(category); setActiveStoreId(null); }} onStore={setActiveStoreId} onAdd={addProduct} onNotice={showNotice} />'
+          if old_call not in patched:
+            raise SystemExit('HomeView render call was not found')
+          patched = patched.replace(old_call, new_call, 1)
+
+          if 'Loading nearby stores' in patched:
+            raise SystemExit('Loading nearby stores text still exists')
+          if 'Products Near You' not in patched or 'onAdd={addProduct}' not in patched:
+            raise SystemExit('Homepage product section was not added correctly')
+
+          app_path.write_text(patched, encoding='utf-8')
+          PY
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build application
+        run: npm run build
+
+      - name: Commit homepage fix and remove temporary workflow
+        shell: bash
+        run: |
+          rm -f .github/workflows/homepage-live-catalog-hotfix.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/App.jsx .github/workflows/homepage-live-catalog-hotfix.yml
+          git commit -m "Show live stores and products on homepage"
+          git push
