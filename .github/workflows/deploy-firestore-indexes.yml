@@ -43,15 +43,30 @@ jobs:
       - name: Deploy Firestore indexes
         id: deploy
         continue-on-error: true
-        run: firebase deploy --only firestore:indexes --project buyqk-rider --non-interactive
+        shell: bash
+        run: |
+          set +e
+          firebase deploy --only firestore:indexes --project buyqk-rider --non-interactive 2>&1 | tee firebase-deploy.log
+          exit_code=${PIPESTATUS[0]}
+          echo "exit_code=$exit_code" >> "$GITHUB_OUTPUT"
+          exit "$exit_code"
 
       - name: Record deployment result
         if: always()
         env:
           DEPLOY_OUTCOME: ${{ steps.deploy.outcome }}
           SOURCE_SHA: ${{ github.sha }}
+          EXIT_CODE: ${{ steps.deploy.outputs.exit_code }}
+        shell: bash
         run: |
-          printf 'outcome=%s\nsource_sha=%s\n' "$DEPLOY_OUTCOME" "$SOURCE_SHA" > firestore-index-deploy-status.txt
+          {
+            printf 'outcome=%s\nsource_sha=%s\nexit_code=%s\n\n' "$DEPLOY_OUTCOME" "$SOURCE_SHA" "$EXIT_CODE"
+            if [ -f firebase-deploy.log ]; then
+              tail -n 35 firebase-deploy.log \
+                | sed -E 's/(Help Token:).*/\1 [redacted]/' \
+                | sed -E 's#https://[^ ]+#https://[redacted]#g'
+            fi
+          } > firestore-index-deploy-status.txt
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add firestore-index-deploy-status.txt
