@@ -7,13 +7,32 @@
 1. Open **Authentication → Sign-in method**.
 2. Enable **Anonymous** authentication for the customer app.
 3. Keep **Google** authentication enabled for merchant and rider apps.
-4. Open **Firestore Database → Rules**.
-5. Copy and publish `firestore.rules` from the `Myqk-merchant` repository.
+4. Deploy the checked-in Firestore rules and indexes:
+
+   ```bash
+   firebase deploy --only firestore
+   ```
+
+   The `firestore.rules` and `firestore.indexes.json` files are identical in all
+   three repositories, so deploy them from only one repository.
+
+## Merchant approval
+
+New stores stay in `pending_approval`. They cannot approve themselves.
+
+Approve a store from a trusted Admin SDK service or the Firebase Console by
+updating both documents:
+
+- `merchants/{merchantUid}`: set `accountStatus` to `active`
+- `stores/{storeId}`: set `isApproved` to `true` and `status` to `active`
+
+For a client-side admin panel, give only real admins the Firebase Auth custom
+claim `admin: true`. Never put service-account credentials in any web app.
 
 ## End-to-end test
 
 1. Open the merchant app and create a store.
-2. Log out and sign in again once so the existing MVP auto-approval script activates the merchant and store.
+2. Approve the pending merchant and store through the trusted admin flow above.
 3. Add at least one product with stock greater than zero.
 4. Open or refresh `Myqk-demo`; the active store and product should appear automatically.
 5. Add a product, enter customer details and address, then place the order.

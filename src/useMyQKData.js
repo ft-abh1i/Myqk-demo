@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { onAuthStateChanged, signInAnonymously } from 'firebase/auth';
+import { onAuthStateChanged, signInAnonymously, signOut } from 'firebase/auth';
 import {
   addDoc,
   collection,
@@ -7,6 +7,7 @@ import {
   getDoc,
   limit,
   onSnapshot,
+  orderBy,
   query,
   serverTimestamp,
   setDoc,
@@ -38,6 +39,9 @@ export default function useMyQKData(onNotice) {
     const unsubscribeAuth = onAuthStateChanged(auth, async (nextUser) => {
       if (!active) return;
       if (!nextUser) {
+        setUser(null);
+        setBackendReady(false);
+        setOrders([]);
         try {
           await signInAnonymously(auth);
         } catch (error) {
@@ -61,6 +65,7 @@ export default function useMyQKData(onNotice) {
       const ordersQuery = query(
         collection(db, 'orders'),
         where('customerId', '==', nextUser.uid),
+        orderBy('createdAt', 'desc'),
         limit(50),
       );
       unsubscribeOrders = onSnapshot(ordersQuery, (snapshot) => {
@@ -135,7 +140,12 @@ export default function useMyQKData(onNotice) {
       publishProducts();
     };
 
-    const storesQuery = query(collection(db, 'stores'), where('isApproved', '==', true));
+    const storesQuery = query(
+      collection(db, 'stores'),
+      where('isApproved', '==', true),
+      where('status', '==', 'active'),
+      where('isOpen', '==', true),
+    );
     const unsubscribeStores = onSnapshot(storesQuery, (snapshot) => {
       const nextStores = snapshot.docs.flatMap((entry) => {
         const data = entry.data();
@@ -152,6 +162,7 @@ export default function useMyQKData(onNotice) {
           address: data.address || {},
           location: data.location || null,
           minimumOrder: Number(data.minimumOrder || 0),
+          deliveryRadiusKm: Number(data.deliveryRadiusKm || 0),
           rating: Number(data.rating || 0),
         }];
       });
@@ -228,6 +239,9 @@ export default function useMyQKData(onNotice) {
       paymentMode: 'Cash on Delivery',
       paymentStatus: 'pending',
       riderPayout: Math.max(25, deliveryFee),
+      schemaVersion: 2,
+      inventoryReserved: false,
+      inventoryRestored: false,
       createdAt: serverTimestamp(),
       createdAtMs: Date.now(),
       updatedAt: serverTimestamp(),
@@ -246,6 +260,10 @@ export default function useMyQKData(onNotice) {
     });
   }, []);
 
+  const resetCustomerSession = useCallback(async () => {
+    await signOut(auth);
+  }, []);
+
   return {
     user,
     stores,
@@ -257,5 +275,6 @@ export default function useMyQKData(onNotice) {
     saveCustomerProfile,
     createOrder,
     cancelOrder,
+    resetCustomerSession,
   };
 }

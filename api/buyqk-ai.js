@@ -1,6 +1,84 @@
 const DEFAULT_MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-flash-latest'];
 const DEFAULT_MAX_OUTPUT_TOKENS = 1600;
 const MAX_CONTEXT_CHARS = 12000;
+const FIREBASE_WEB_API_KEY = process.env.FIREBASE_WEB_API_KEY || 'AIzaSyDbNDNI1a69VDZmLo7Se6LNGPLD6A8_MmE';
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const RATE_LIMIT_REQUESTS = 30;
+const requestBuckets = new Map();
+
+function requestOrigin(req) {
+  return String(req.headers?.origin || '').trim();
+}
+
+function isAllowedOrigin(req, origin) {
+  if (!origin) return true;
+
+  try {
+    const parsed = new URL(origin);
+    const forwardedHost = String(req.headers?.['x-forwarded-host'] || '').split(',')[0].trim();
+    const requestHost = forwardedHost || String(req.headers?.host || '').trim();
+    const configured = String(process.env.BUYQK_ALLOWED_ORIGINS || '')
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean);
+
+    if (configured.includes(origin)) return true;
+    if (!requestHost || parsed.host !== requestHost) return false;
+    return parsed.protocol === 'https:' || ['localhost', '127.0.0.1'].includes(parsed.hostname);
+  } catch {
+    return false;
+  }
+}
+
+function setCorsHeaders(req, res) {
+  const origin = requestOrigin(req);
+  if (origin && isAllowedOrigin(req, origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
+  res.setHeader('Vary', 'Origin');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+  res.setHeader('Cache-Control', 'no-store');
+}
+
+async function verifyFirebaseToken(req) {
+  const authorization = String(req.headers?.authorization || '');
+  const token = authorization.match(/^Bearer\s+(.+)$/i)?.[1]?.trim();
+  if (!token) return null;
+
+  const response = await fetch(
+    `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${encodeURIComponent(FIREBASE_WEB_API_KEY)}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken: token }),
+      signal: AbortSignal.timeout(7000)
+    }
+  );
+
+  if (!response.ok) return null;
+  const data = await response.json().catch(() => ({}));
+  return data?.users?.[0]?.localId || null;
+}
+
+function isRateLimited(userId) {
+  const now = Date.now();
+  const recent = (requestBuckets.get(userId) || []).filter(
+    (timestamp) => now - timestamp < RATE_LIMIT_WINDOW_MS
+  );
+  recent.push(now);
+  requestBuckets.set(userId, recent);
+
+  if (requestBuckets.size > 1000) {
+    for (const [key, timestamps] of requestBuckets) {
+      if (!timestamps.some((timestamp) => now - timestamp < RATE_LIMIT_WINDOW_MS)) {
+        requestBuckets.delete(key);
+      }
+    }
+  }
+
+  return recent.length > RATE_LIMIT_REQUESTS;
+}
 
 function readBody(req) {
   if (req.body && typeof req.body === 'object') return Promise.resolve(req.body);
@@ -396,11 +474,14 @@ async function callGemini({ apiKey, model, prompt }) {
   return { response, data };
 }
 
-module.exports = async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  res.setHeader('Cache-Control', 'no-store');
+export default async function handler(req, res) {
+  const origin = requestOrigin(req);
+  setCorsHeaders(req, res);
+
+  if (!isAllowedOrigin(req, origin)) {
+    res.status(403).json({ error: 'Origin is not allowed.' });
+    return;
+  }
 
   if (req.method === 'OPTIONS') {
     res.status(204).end();
@@ -409,6 +490,24 @@ module.exports = async function handler(req, res) {
 
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Method not allowed' });
+    return;
+  }
+
+  let userId = null;
+  try {
+    userId = await verifyFirebaseToken(req);
+  } catch (error) {
+    console.error('Firebase token verification failed:', error?.message || error);
+  }
+
+  if (!userId) {
+    res.status(401).json({ error: 'Authentication is required.' });
+    return;
+  }
+
+  if (isRateLimited(userId)) {
+    res.setHeader('Retry-After', '60');
+    res.status(429).json({ error: 'Too many requests. Please try again in a minute.' });
     return;
   }
 
@@ -503,12 +602,12 @@ module.exports = async function handler(req, res) {
     }
   }
 
+  console.error('Gemini providers unavailable:', lastError);
   const fallbackReply = buildFallback(message, context);
   res.status(200).json({
     model: 'buyqk-local-fallback',
     reply: fallbackReply,
     finishReason: 'PROVIDER_UNAVAILABLE',
-    providerError: lastError,
     recommendations: extractRecommendations(fallbackReply, context)
   });
 };
