@@ -1,0 +1,254 @@
+name: Auto-authorize marketplace v2
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/auto-authorize-marketplace-v2.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v3
+        with:
+          project_id: buyqk-rider
+
+      - name: Patch Firestore rules and tests
+        shell: python
+        run: |
+          from pathlib import Path
+
+          rules_path = Path('firestore.rules')
+          rules = rules_path.read_text()
+
+          exact = [
+            (
+              """    function publicStore(storeId) {
+      return exists(/databases/$(database)/documents/stores/$(storeId))
+        && get(/databases/$(database)/documents/stores/$(storeId)).data.isApproved == true
+        && get(/databases/$(database)/documents/stores/$(storeId)).data.status == 'active'
+        && get(/databases/$(database)/documents/stores/$(storeId)).data.isOpen == true;
+    }""",
+              """    function publicStoreData(data) {
+      return data.isApproved == true
+        && data.status == 'active'
+        && data.isOpen == true;
+    }
+
+    function publicStore(storeId) {
+      return exists(/databases/$(database)/documents/stores/$(storeId))
+        && publicStoreData(
+          get(/databases/$(database)/documents/stores/$(storeId)).data
+        );
+    }"""
+            ),
+            ("        && request.resource.data.accountStatus == 'pending'", "        && request.resource.data.accountStatus == 'active'"),
+            (
+              """        ).data.status == 'pending_approval';""",
+              """        ).data.status == 'active'
+        && getAfter(
+          /databases/$(database)/documents/stores/$(request.resource.data.storeId)
+        ).data.isApproved == true;"""
+            ),
+            (
+              """        && request.resource.data.isApproved == false
+        && request.resource.data.status == 'pending_approval'""",
+              """        && request.resource.data.isApproved == true
+        && request.resource.data.status == 'active'"""
+            ),
+            ("        || publicStore(storeId);", "        || publicStoreData(resource.data);"),
+          ]
+
+          for old, new in exact:
+            if old not in rules:
+              raise SystemExit(f'Missing expected rule block: {old!r}')
+            rules = rules.replace(old, new, 1)
+
+          rider_update_anchor = """      allow update: if isOwner(riderId)
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.onboardingComplete == resource.data.onboardingComplete
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'fullName', 'email', 'photoURL', 'phone', 'city',"""
+          rider_activation_rule = """      allow update: if isOwner(riderId)
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.onboardingComplete == resource.data.onboardingComplete
+        && request.resource.data.isApproved == true
+        && request.resource.data.accountStatus == 'active'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'isApproved', 'accountStatus', 'updatedAt'
+        ]);
+
+"""
+          if rider_activation_rule not in rules:
+            if rider_update_anchor not in rules:
+              raise SystemExit('Could not find rider update rule insertion point.')
+            rules = rules.replace(rider_update_anchor, rider_activation_rule + rider_update_anchor, 1)
+
+          rules_path.write_text(rules)
+
+          tests_path = Path('tests/firestore-rules.integration.mjs')
+          tests = tests_path.read_text()
+          tests = tests.replace(
+            "  collection,\n  doc,\n  runTransaction,",
+            "  collection,\n  doc,\n  getDocs,\n  query,\n  runTransaction,"
+          )
+          tests = tests.replace(
+            "  updateDoc,\n  writeBatch",
+            "  updateDoc,\n  where,\n  writeBatch"
+          )
+
+          start = tests.index("test('merchant onboarding requires the pending store and profile to be created together'")
+          prefix, section = tests[:start], tests[start:]
+          section = section.replace(
+            "test('merchant onboarding requires the pending store and profile to be created together'",
+            "test('merchant onboarding creates an active store and profile together'",
+            1
+          )
+          section = section.replace(
+            "    isApproved: false,\n    status: 'pending_approval',",
+            "    isApproved: true,\n    status: 'active',",
+            1
+          )
+          section = section.replace("    accountStatus: 'pending'", "    accountStatus: 'active'", 1)
+          tests = prefix + section
+
+          anchor = "test('customer order validation accepts the real bill and rejects a tampered total', async () => {"
+          public_test = """test('public homepage query can list active open stores', async () => {
+  const publicDb = rulesEnvironment.unauthenticatedContext().firestore();
+  const storesQuery = query(
+    collection(publicDb, 'stores'),
+    where('isApproved', '==', true),
+    where('status', '==', 'active'),
+    where('isOpen', '==', true)
+  );
+  const snapshot = await assertSucceeds(getDocs(storesQuery));
+  assert.equal(snapshot.size, 1);
+});
+
+"""
+          if public_test not in tests:
+            tests = tests.replace(anchor, public_test + anchor, 1)
+
+          tests_path.write_text(tests)
+
+      - name: Validate code and rules
+        run: |
+          npm ci
+          npm test
+          npm run build
+          npx --yes firebase-tools@15.25.1 emulators:exec --only firestore --project demo-buyqk-rules-tests "npm run test:rules"
+
+      - name: Deploy Firestore rules
+        shell: bash
+        run: |
+          set -e
+          npx --yes firebase-tools@15.25.1 deploy --only firestore:rules --project buyqk-rider --non-interactive
+
+      - name: Activate existing marketplace accounts
+        shell: bash
+        run: |
+          export ACCESS_TOKEN="$(gcloud auth print-access-token)"
+          python <<'PY'
+          import datetime
+          import json
+          import os
+          import urllib.parse
+          import urllib.request
+
+          project = 'buyqk-rider'
+          root = f'https://firestore.googleapis.com/v1/projects/{project}/databases/(default)/documents'
+          token = os.environ['ACCESS_TOKEN']
+
+          def api(url, method='GET', body=None):
+              headers = {'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'}
+              payload = json.dumps(body).encode() if body is not None else None
+              req = urllib.request.Request(url, data=payload, headers=headers, method=method)
+              with urllib.request.urlopen(req, timeout=60) as response:
+                  return json.load(response)
+
+          def all_docs(collection):
+              token_value = ''
+              while True:
+                  params = {'pageSize': 300}
+                  if token_value:
+                      params['pageToken'] = token_value
+                  result = api(f"{root}/{collection}?{urllib.parse.urlencode(params)}")
+                  yield from result.get('documents', [])
+                  token_value = result.get('nextPageToken', '')
+                  if not token_value:
+                      break
+
+          def scalar(field):
+              return next(iter(field.values()), None) if field else None
+
+          def patch(document, fields):
+              masks = [('updateMask.fieldPaths', key) for key in fields]
+              url = f"https://firestore.googleapis.com/v1/{document['name']}?{urllib.parse.urlencode(masks)}"
+              api(url, 'PATCH', {'fields': fields})
+
+          now = datetime.datetime.now(datetime.timezone.utc).isoformat().replace('+00:00', 'Z')
+          changed = {'stores': 0, 'merchants': 0, 'riders': 0}
+
+          for document in all_docs('stores'):
+              fields = document.get('fields', {})
+              if scalar(fields.get('isApproved')) is not True or scalar(fields.get('status')) != 'active':
+                  patch(document, {
+                    'isApproved': {'booleanValue': True},
+                    'status': {'stringValue': 'active'},
+                    'updatedAt': {'timestampValue': now},
+                  })
+                  changed['stores'] += 1
+
+          for document in all_docs('merchants'):
+              if scalar(document.get('fields', {}).get('accountStatus')) != 'active':
+                  patch(document, {
+                    'accountStatus': {'stringValue': 'active'},
+                    'updatedAt': {'timestampValue': now},
+                  })
+                  changed['merchants'] += 1
+
+          for document in all_docs('riders'):
+              fields = document.get('fields', {})
+              if scalar(fields.get('isApproved')) is not True or scalar(fields.get('accountStatus')) != 'active':
+                  patch(document, {
+                    'isApproved': {'booleanValue': True},
+                    'accountStatus': {'stringValue': 'active'},
+                    'updatedAt': {'timestampValue': now},
+                  })
+                  changed['riders'] += 1
+
+          print('Auto-authorized:', changed)
+          PY
+
+      - name: Commit rules and cleanup
+        run: |
+          rm -f .github/workflows/auto-authorize-marketplace-v2.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add firestore.rules tests/firestore-rules.integration.mjs .github/workflows/auto-authorize-marketplace-v2.yml
+          git commit -m "Auto-authorize merchants and riders"
+          git push
