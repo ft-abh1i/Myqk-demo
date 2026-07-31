@@ -106,7 +106,7 @@ function GroceryKitchen() {
   );
 }
 
-function HomeView({ stores, products, loading, search, activeCategory, onCategory, onStore, onNotice }) {
+function HomeView({ stores, products, search, activeCategory, onCategory, onStore, onAdd, onNotice }) {
   const visibleStores = useMemo(() => {
     const query = search.trim().toLowerCase();
     return stores.filter((store) => (activeCategory === 'all' || store.category === activeCategory)
@@ -116,28 +116,37 @@ function HomeView({ stores, products, loading, search, activeCategory, onCategor
           && `${product.name} ${product.brand} ${product.unit} ${product.category}`.toLowerCase().includes(query))));
   }, [activeCategory, products, search, stores]);
 
+  const visibleProducts = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    const visibleStoreIds = new Set(visibleStores.map((store) => store.id));
+    return products
+      .filter((product) => visibleStoreIds.has(product.storeId)
+        && (!query
+          || `${product.name} ${product.brand} ${product.unit} ${product.category}`.toLowerCase().includes(query)))
+      .slice(0, 16);
+  }, [products, search, visibleStores]);
+
   return (
     <div className="view home-view">
       <CategoryStrip activeCategory={activeCategory} onSelect={onCategory} />
-      {loading && !stores.length ? <EmptyState icon="…" title="Loading nearby stores" subtitle="Connecting to MyQK merchants." /> : null}
-      {!loading && !stores.length ? <EmptyState icon="⌂" title="No stores available yet" subtitle="Open merchant stores will appear here automatically." /> : null}
-      {stores.length ? (
-        <>
-          <section className="home-section">
-            <div className="home-section-head"><h2>Available Stores</h2><button type="button" onClick={() => onNotice('Showing all currently available stores.')}>View all</button></div>
-            <div className="featured-store-row">
-              {visibleStores.map((store) => (
-                <button className="featured-store-card" type="button" key={store.id} onClick={() => onStore(store.id)}>
-                  <img src={store.image} alt={store.name} loading="lazy" />
-                  <div className="featured-store-info"><strong>{store.name}</strong><span className="store-clock">◷ {store.time}</span><span className="free-delivery">Live inventory</span></div>
-                </button>
-              ))}
-              {!visibleStores.length ? <p className="home-no-result">No matching stores found.</p> : null}
-            </div>
-          </section>
-          <GroceryKitchen />
-        </>
-      ) : null}
+      <section className="home-section">
+        <div className="home-section-head"><h2>Available Stores</h2><button type="button" onClick={() => onNotice('Showing all currently available stores.')}>View all</button></div>
+        <div className="featured-store-row">
+          {visibleStores.map((store) => (
+            <button className="featured-store-card" type="button" key={store.id} onClick={() => onStore(store.id)}>
+              <img src={store.image} alt={store.name} loading="lazy" />
+              <div className="featured-store-info"><strong>{store.name}</strong><span className="store-clock">◷ {store.time}</span><span className="free-delivery">Live inventory</span></div>
+            </button>
+          ))}
+        </div>
+      </section>
+      <section className="home-section" aria-labelledby="nearbyProductsTitle">
+        <div className="home-section-head"><h2 id="nearbyProductsTitle">Products Near You</h2><button type="button" onClick={() => onNotice('Showing live products from nearby stores.')}>View all</button></div>
+        <div className="best-product-row">
+          {visibleProducts.map((product) => <ProductCard key={product.key} product={product} onAdd={onAdd} />)}
+        </div>
+      </section>
+      <GroceryKitchen />
     </div>
   );
 }
@@ -612,7 +621,7 @@ export default function App() {
   const goBackFromSecondary = () => { if (activeTab === 'orders' && selectedOrderId) setSelectedOrderId(null); else setActiveTab('darkstore'); };
 
   let mainContent;
-  if (activeTab === 'darkstore') mainContent = activeStore ? <StoreView store={activeStore} products={products} search={search} onBack={() => setActiveStoreId(null)} onAdd={addProduct} /> : <HomeView stores={stores} products={products} loading={catalogLoading} search={search} activeCategory={activeCategory} onCategory={(category) => { setActiveCategory(category); setActiveStoreId(null); }} onStore={setActiveStoreId} onNotice={showNotice} />;
+  if (activeTab === 'darkstore') mainContent = activeStore ? <StoreView store={activeStore} products={products} search={search} onBack={() => setActiveStoreId(null)} onAdd={addProduct} /> : <HomeView stores={stores} products={products} search={search} activeCategory={activeCategory} onCategory={(category) => { setActiveCategory(category); setActiveStoreId(null); }} onStore={setActiveStoreId} onAdd={addProduct} onNotice={showNotice} />;
   else if (activeTab === 'orders') mainContent = <OrdersView orders={orders} selectedOrder={selectedOrder} onSelect={setSelectedOrderId} onBack={goBackFromSecondary} onCancel={handleCancel} cancelling={cancelling} />;
   else if (activeTab === 'track') mainContent = <TrackView order={activeOrder} onBack={goBackFromSecondary} />;
   else if (activeTab === 'ai') mainContent = <AiView onBack={goBackFromSecondary} user={user} stores={stores} products={products} cart={cart} orders={orders} location={location} onAdd={addProduct} onChange={changeCart} />;
