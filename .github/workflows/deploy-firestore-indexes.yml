@@ -40,5 +40,6 @@ jobs:
       - name: Install Firebase CLI
         run: npm install --global firebase-tools
 
+      # Re-triggered after granting the service account required IAM roles.
       - name: Deploy Firestore indexes
         run: firebase deploy --only firestore:indexes --project buyqk-rider --non-interactive
