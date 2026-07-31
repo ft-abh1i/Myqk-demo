@@ -1,1 +1,1 @@
-Run marketplace auto-authorization workflow for PR #17 with Rules API fallback.
+Verify scheduled marketplace auto-authorization for PR #17.
