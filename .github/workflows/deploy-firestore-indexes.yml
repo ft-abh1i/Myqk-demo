@@ -1,0 +1,44 @@
+name: Deploy Firestore Indexes
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "firestore.indexes.json"
+      - "firebase.json"
+      - ".github/workflows/deploy-firestore-indexes.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-firestore-indexes
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy indexes to buyqk-rider
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Firebase CLI
+        run: npm install --global firebase-tools
+
+      - name: Deploy Firestore indexes
+        run: firebase deploy --only firestore:indexes --project buyqk-rider --non-interactive
