@@ -1,0 +1,19 @@
+.ai-history-block {
+  display: contents;
+}
+
+.ai-form #aiSend {
+  background: #1f7a4d;
+  color: #ffffff;
+  box-shadow: 0 7px 16px rgba(31, 122, 77, 0.24);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ai-form #aiSend:active {
+  transform: scale(0.96);
+}
+
+.ai-form #aiSend:disabled {
+  background: #1f7a4d;
+}
