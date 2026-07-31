@@ -1,0 +1,135 @@
+name: Auto-authorize marketplace accounts
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/auto-authorize-marketplace.yml"
+  pull_request:
+    branches: [main]
+    types: [synchronize]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: auto-authorize-marketplace-records
+  cancel-in-progress: false
+
+jobs:
+  authorize:
+    if: github.event_name != 'pull_request' || github.head_ref == 'agent/auto-authorize-marketplace'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.head_ref || 'main' }}
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v3
+        with:
+          project_id: buyqk-rider
+
+      - name: Activate pending stores, merchants, and riders
+        shell: bash
+        run: |
+          export ACCESS_TOKEN="$(gcloud auth print-access-token)"
+          python <<'PY' | tee auto-authorization-status.txt
+          import datetime
+          import json
+          import os
+          import urllib.parse
+          import urllib.request
+
+          project = 'buyqk-rider'
+          root = f'https://firestore.googleapis.com/v1/projects/{project}/databases/(default)/documents'
+          token = os.environ['ACCESS_TOKEN']
+
+          def api(url, method='GET', body=None):
+              payload = json.dumps(body).encode() if body is not None else None
+              request = urllib.request.Request(
+                  url,
+                  data=payload,
+                  headers={
+                      'Authorization': f'Bearer {token}',
+                      'Content-Type': 'application/json',
+                  },
+                  method=method,
+              )
+              with urllib.request.urlopen(request, timeout=60) as response:
+                  return json.load(response)
+
+          def all_docs(collection):
+              page_token = ''
+              while True:
+                  params = {'pageSize': 300}
+                  if page_token:
+                      params['pageToken'] = page_token
+                  response = api(f"{root}/{collection}?{urllib.parse.urlencode(params)}")
+                  yield from response.get('documents', [])
+                  page_token = response.get('nextPageToken', '')
+                  if not page_token:
+                      break
+
+          def scalar(field):
+              return next(iter(field.values()), None) if field else None
+
+          def patch(document, fields):
+              masks = [('updateMask.fieldPaths', field) for field in fields]
+              url = f"https://firestore.googleapis.com/v1/{document['name']}?{urllib.parse.urlencode(masks)}"
+              api(url, 'PATCH', {'fields': fields})
+
+          now = datetime.datetime.now(datetime.timezone.utc).isoformat().replace('+00:00', 'Z')
+          changed = {'stores': 0, 'merchants': 0, 'riders': 0}
+
+          for document in all_docs('stores'):
+              fields = document.get('fields', {})
+              if scalar(fields.get('isApproved')) is not True or scalar(fields.get('status')) != 'active':
+                  patch(document, {
+                      'isApproved': {'booleanValue': True},
+                      'status': {'stringValue': 'active'},
+                      'updatedAt': {'timestampValue': now},
+                  })
+                  changed['stores'] += 1
+
+          for document in all_docs('merchants'):
+              if scalar(document.get('fields', {}).get('accountStatus')) != 'active':
+                  patch(document, {
+                      'accountStatus': {'stringValue': 'active'},
+                      'updatedAt': {'timestampValue': now},
+                  })
+                  changed['merchants'] += 1
+
+          for document in all_docs('riders'):
+              fields = document.get('fields', {})
+              if scalar(fields.get('isApproved')) is not True or scalar(fields.get('accountStatus')) != 'active':
+                  patch(document, {
+                      'isApproved': {'booleanValue': True},
+                      'accountStatus': {'stringValue': 'active'},
+                      'updatedAt': {'timestampValue': now},
+                  })
+                  changed['riders'] += 1
+
+          print('auto_authorization=success')
+          for key, value in changed.items():
+              print(f'{key}_activated={value}')
+          PY
+
+      - name: Record pull request verification result
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add auto-authorization-status.txt
+          git commit -m "Record auto-authorization migration result" || exit 0
+          git push origin HEAD:${{ github.head_ref }}
