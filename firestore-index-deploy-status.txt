@@ -1,2 +1,15 @@
 outcome=failure
-source_sha=353537df2b3eaa54a058e74c737c375a04d448f0
+source_sha=00728de411de3079c6577e476b38cd3fcc020e5c
+exit_code=1
+
+
+[1m[37m===[39m Deploying to 'buyqk-rider'...[22m
+
+[36m[1mi [22m[39m deploying [1mfirestore[22m
+[36m[1mi  firestore:[22m[39m ensuring required API [1mfirestore.googleapis.com[22m is enabled...
+[32m[1m✔  firestore:[22m[39m required API [1mfirestore.googleapis.com[22m is enabled
+[36m[1mi  firestore:[22m[39m ensuring required API [1mfirestore.googleapis.com[22m is enabled...
+[36m[1mi [22m[39m [1m[36mfirestore:[39m[22m reading indexes from [1mfirestore.indexes.json[22m...
+[36m[1mi  cloud.firestore:[22m[39m checking [1mfirestore.rules[22m for compilation errors...
+
+[1m[31mError:[39m[22m Request to https://[redacted] had HTTP Error: 403, The caller does not have permission
