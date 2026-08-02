@@ -20,12 +20,14 @@ const navTabs = [
 ];
 
 const categories = [
-  ['all', 'All Stores', '', 'https://i.ibb.co/ksPGNTh1/file-00000000e5e47207b913f9b20e24648a.png'],
-  ['groceries', 'Grocery', '', 'https://i.ibb.co/DPM7XHp1/file-000000002e407207b364dac899ed1521.png'],
-  ['pharmacy', 'Pharmacy', '', 'https://i.ibb.co/LXzpZ7wM/file-00000000142071fa904cffc2ac9358b3.png'],
-  ['beauty', 'Beauty', '', 'https://i.ibb.co/Q7kN67Gz/file-000000001c7071fa83e0b592537c937c.png'],
-  ['kids', 'Kids', '', 'https://i.ibb.co/WWGpBHDk/file-00000000d90471fa96565410954cb120.png'],
-  ['electronics', 'Electronics', '', 'https://i.ibb.co/9Hg19qZp/file-0000000049ec71fab3f2e2e7de8d5ac0.png']
+  ['all', 'All', '', '/assets/category-all.webp'],
+  ['groceries', 'Grocery', '', '/assets/category-grocery.webp'],
+  ['food', 'Food', '', '/assets/category-food.webp'],
+  ['pharmacy', 'Pharmacy', '', '/assets/category-pharmacy.webp'],
+  ['services', 'Services', '', '/assets/category-services.webp'],
+  ['electronics', 'Electronics', '', '/assets/category-electronics.webp'],
+  ['kids', 'Kids', '', '/assets/category-kids.webp'],
+  ['beauty', 'Beauty', '', '/assets/category-beauty.webp']
 ];
 
 const stores = [];
