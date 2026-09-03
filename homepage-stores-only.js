@@ -10,47 +10,6 @@
       <div class="home-section-head">
         <h2 id="groceryKitchenTitle">Grocery &amp; Kitchen</h2>
       </div>
-      <div class="grocery-category-grid" aria-label="Grocery and Kitchen categories">
-        <article class="grocery-category-card">
-          <div class="grocery-category-image">
-            <img
-              src="/assets/vegetables-fruits.webp"
-              alt="Vegetables and Fruits"
-              width="1024"
-              height="1024"
-              loading="lazy"
-              decoding="async"
-            >
-          </div>
-          <span class="grocery-category-label">Vegetables &amp; Fruits</span>
-        </article>
-        <article class="grocery-category-card">
-          <div class="grocery-category-image">
-            <img
-              src="/assets/atta-rice-dal-optimized.webp"
-              alt="Atta, Rice and Dal"
-              width="512"
-              height="512"
-              loading="lazy"
-              decoding="async"
-            >
-          </div>
-          <span class="grocery-category-label">Atta, Rice &amp; Dal</span>
-        </article>
-        <article class="grocery-category-card">
-          <div class="grocery-category-image">
-            <img
-              src="/assets/dairy-bread-eggs-transparent.webp"
-              alt="Dairy, Bread and Eggs"
-              width="1024"
-              height="1024"
-              loading="lazy"
-              decoding="async"
-            >
-          </div>
-          <span class="grocery-category-label">Dairy, Bread &amp; Eggs</span>
-        </article>
-      </div>
     </section>`;
 
   function removeHomepageProducts() {
